@@ -29,11 +29,6 @@ export const variables = defineEnvVars({
         description: 'Client secret of the Spotify app. Secret.',
         schema: required('SPOTIFY_CLIENT_SECRET')
     },
-    ADMIN_SPOTIFY_USER_ID: {
-        description:
-            'Spotify user ID of the admin, who connects the room account and approves hosts.',
-        schema: required('ADMIN_SPOTIFY_USER_ID')
-    },
     APP_SECRET: {
         description: 'Key for encrypting stored Spotify tokens (at least 32 characters). Secret.',
         schema: required('APP_SECRET', (value) =>

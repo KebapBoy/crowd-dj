@@ -6,7 +6,7 @@ declare global {
     namespace App {
         // interface Error {}
         interface Locals {
-            /** Spotify account this browser is signed in with: a host or the admin. */
+            /** Spotify account this browser is signed in with: a host. */
             account: AccountView | null
         }
         // interface PageData {}

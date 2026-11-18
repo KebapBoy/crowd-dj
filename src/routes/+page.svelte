@@ -19,16 +19,7 @@
         <h2>{m.host_heading()}</h2>
         {#if data.account}
             <p>{m.host_signed_in_as({ name: data.account.displayName ?? data.account.id })}</p>
-            {#if data.account.isAdmin}
-                <p>{m.host_status_admin()} <a href={resolve('/admin')}>{m.admin_link()}</a></p>
-            {:else if data.account.approved}
-                <p>{m.host_status_approved()}</p>
-            {:else}
-                <p>{m.host_status_pending()}</p>
-            {/if}
-            <form method="POST" action="/auth/logout">
-                <button>{m.sign_out()}</button>
-            </form>
+            <p><a href={resolve('/account')}>{m.account_title()}</a></p>
         {:else}
             <p>{m.host_intro()}</p>
             <p><a href={resolve('/auth/login')}>{m.sign_in_spotify()}</a></p>

@@ -15,12 +15,15 @@ CREATE TABLE `spotify_account` (
 	`id` text PRIMARY KEY NOT NULL,
 	`display_name` text,
 	`image_url` text,
-	`approved_at` integer,
+	`player_of` text,
 	`refresh_token` text NOT NULL,
 	`access_token` text,
 	`access_token_expires_at` integer,
 	`scope` text NOT NULL,
 	`authorized_at` integer NOT NULL,
 	`revoked_at` integer,
-	`created_at` integer NOT NULL
+	`created_at` integer NOT NULL,
+	FOREIGN KEY (`player_of`) REFERENCES `spotify_account`(`id`) ON UPDATE no action ON DELETE cascade
 );
+--> statement-breakpoint
+CREATE UNIQUE INDEX `spotify_account_player_of_unique` ON `spotify_account` (`player_of`);

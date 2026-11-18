@@ -12,7 +12,6 @@ services:
             ORIGIN: ${ORIGIN:?set ORIGIN}
             SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID:?set SPOTIFY_CLIENT_ID}
             SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET:?set SPOTIFY_CLIENT_SECRET}
-            ADMIN_SPOTIFY_USER_ID: ${ADMIN_SPOTIFY_USER_ID:?set ADMIN_SPOTIFY_USER_ID}
             APP_SECRET: ${APP_SECRET:?set APP_SECRET}
         volumes:
             # SQLite database (accounts with encrypted tokens, profiles, pools, sessions)

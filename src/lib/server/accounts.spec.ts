@@ -6,7 +6,6 @@ import { openDatabase, type Database } from './db/open'
 import { SpotifyError } from './spotify/oauth'
 
 const key = tokenKey('test-secret-test-secret-test-secret')
-const ADMIN = 'admin-user'
 
 function json(body: unknown, status = 200) {
     return new Response(JSON.stringify(body), {
@@ -37,7 +36,6 @@ beforeEach(async () => {
         db,
         key,
         client: { clientId: 'id', clientSecret: 'secret', fetch: fetchMock as typeof fetch },
-        adminId: ADMIN,
         now: () => now
     })
 })
@@ -93,30 +91,48 @@ describe('accounts', () => {
         expect((await accounts.get('a'))?.tokenStatus).toBe('expired')
     })
 
-    it('treats the admin as approved and approves hosts', async () => {
-        await accounts.saveAuthorization(tokens(ADMIN), profile(ADMIN))
+    it("connects, swaps and removes a host's player", async () => {
         await accounts.saveAuthorization(tokens('host'), profile('host'))
-        expect(await accounts.get(ADMIN)).toMatchObject({ isAdmin: true, approved: true })
-        expect(await accounts.get('host')).toMatchObject({ isAdmin: false, approved: false })
-        await accounts.setApproved('host', true)
-        expect((await accounts.get('host'))?.approved).toBe(true)
-        await expect(accounts.remove(ADMIN)).rejects.toThrow()
+        expect(await accounts.playerProblem('host', 'host')).toBe('self')
+        expect(await accounts.playerProblem('host', 'player1')).toBeNull()
+
+        await accounts.connectPlayer('host', tokens('player1'), profile('player1'))
+        expect((await accounts.player('host'))?.id).toBe('player1')
+        expect((await accounts.get('player1'))?.playerOf).toBe('host')
+        // Connecting it again renews it
+        expect(await accounts.playerProblem('host', 'player1')).toBeNull()
+        await accounts.connectPlayer('host', tokens('player1'), profile('player1'))
+
+        await accounts.saveAuthorization(tokens('other'), profile('other'))
+        expect(await accounts.playerProblem('other', 'player1')).toBe('taken')
+        expect(await accounts.playerProblem('host', 'other')).toBe('host')
+
+        // Swapping deletes the previous player with its tokens
+        await accounts.connectPlayer('host', tokens('player2'), profile('player2'))
+        expect(await accounts.get('player1')).toBeNull()
+        expect((await accounts.player('host'))?.id).toBe('player2')
+
+        await accounts.removePlayer('host')
+        expect(await accounts.player('host')).toBeNull()
+        expect(await accounts.get('player2')).toBeNull()
     })
 
-    it('swaps the room account and deletes the previous one unless it signs in on its own', async () => {
-        await accounts.saveAuthorization(tokens('room1'), profile('room1'))
-        await accounts.replaceRoomAccount('room1')
-        expect((await accounts.roomAccount())?.id).toBe('room1')
+    it('stores a player only together with its host', async () => {
+        await accounts.saveAuthorization(tokens('host'), profile('host'))
+        const broken = { ...tokens('player'), refreshToken: undefined }
+        await expect(accounts.connectPlayer('host', broken, profile('player'))).rejects.toThrow()
+        expect(await accounts.get('player')).toBeNull()
+        expect(await accounts.playerProblem('host', 'player')).toBeNull()
+    })
 
-        await accounts.saveAuthorization(tokens('room2'), profile('room2'))
-        await accounts.replaceRoomAccount('room2')
-        expect((await accounts.roomAccount())?.id).toBe('room2')
-        expect(await accounts.get('room1')).toBeNull()
-
-        await accounts.setApproved('room2', true)
-        await accounts.replaceRoomAccount(null)
-        expect(await accounts.roomAccount()).toBeNull()
-        expect(await accounts.get('room2')).not.toBeNull()
+    it('deletes a host with its player and sign-ins', async () => {
+        await accounts.saveAuthorization(tokens('host'), profile('host'))
+        await accounts.connectPlayer('host', tokens('player'), profile('player'))
+        const { token } = await accounts.createLogin('host')
+        await accounts.removeHost('host')
+        expect(await accounts.get('host')).toBeNull()
+        expect(await accounts.get('player')).toBeNull()
+        expect(await accounts.accountForLogin(token)).toBeNull()
     })
 
     it('signs browsers in and out', async () => {
@@ -133,10 +149,10 @@ describe('accounts', () => {
         expect(await accounts.accountForLogin(second.token)).toBeNull()
     })
 
-    it('signs the browsers of a removed account out', async () => {
+    it('signs the browsers of a deleted account out', async () => {
         await accounts.saveAuthorization(tokens('a'), profile('a'))
         const { token } = await accounts.createLogin('a')
-        await accounts.remove('a')
+        await accounts.removeHost('a')
         expect(await accounts.accountForLogin(token)).toBeNull()
     })
 })
@@ -148,20 +164,11 @@ describe('accounts after review', () => {
             db,
             key: tokenKey('another-secret-another-secret-another'),
             client: { clientId: 'id', clientSecret: 'secret', fetch: fetchMock as typeof fetch },
-            adminId: ADMIN,
             now: () => now
         })
         await expect(other.accessToken('a')).rejects.toMatchObject({ invalidGrant: true })
         expect((await other.get('a'))?.tokenStatus).toBe('revoked')
         expect(fetchMock).not.toHaveBeenCalled()
-    })
-
-    it('keeps a previous room account that is signed in', async () => {
-        await accounts.saveAuthorization(tokens('room1'), profile('room1'))
-        await accounts.replaceRoomAccount('room1')
-        await accounts.createLogin('room1')
-        await accounts.replaceRoomAccount(null)
-        expect(await accounts.get('room1')).not.toBeNull()
     })
 
     it('does not let a refresh overwrite a sign-in that happened meanwhile', async () => {

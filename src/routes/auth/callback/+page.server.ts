@@ -5,7 +5,7 @@ import { exchangeCode, getProfile, SpotifyError } from '#lib/server/spotify/oaut
 import { m } from '#lib/paraglide/messages.js'
 import type { PageServerLoad } from './$types'
 
-/** Spotify sends the browser back here after a sign-in or after connecting the room account. */
+/** Spotify sends the browser back here after a host signed in or connected their player. */
 export const load: PageServerLoad = async ({ url, cookies, locals }) => {
     const [purpose, expectedState] = (cookies.get(OAUTH_COOKIE) ?? '').split(':')
     cookies.delete(OAUTH_COOKIE, { path: '/auth' })
@@ -15,7 +15,8 @@ export const load: PageServerLoad = async ({ url, cookies, locals }) => {
     if (url.searchParams.get('error')) error(400, m.auth_cancelled())
     const code = url.searchParams.get('code')
     if (!code) error(400, m.auth_cancelled())
-    if (purpose === 'room' && !locals.account?.isAdmin) error(403, m.admin_only())
+    const host = locals.account
+    if (purpose === 'player' && !host) error(401, m.sign_in_required())
 
     let tokens, profile
     try {
@@ -29,17 +30,18 @@ export const load: PageServerLoad = async ({ url, cookies, locals }) => {
         error(502, m.auth_failed())
     }
 
-    const existing = await accounts.get(profile.id)
-    if (purpose === 'room') {
-        // Usually the admin forgot to pick "Not you?" in Spotify's dialog
-        if (existing?.isAdmin || existing?.approved) error(409, m.auth_room_is_host())
-        await accounts.saveAuthorization(tokens, profile)
-        await accounts.replaceRoomAccount(profile.id)
-        redirect(303, '/admin')
+    if (purpose === 'player' && host) {
+        // Usually the host forgot to pick "Not you?" in Spotify's dialog
+        const problem = await accounts.playerProblem(host.id, profile.id)
+        if (problem === 'self') error(409, m.auth_player_is_self())
+        if (problem === 'taken') error(409, m.auth_player_taken())
+        if (problem) error(409, m.auth_player_is_host())
+        await accounts.connectPlayer(host.id, tokens, profile)
+        redirect(303, '/account')
     }
 
-    // Nobody signs in as the room account: it plays for everyone and is managed on the admin page
-    if (existing?.isRoom) error(409, m.auth_is_room_account())
+    // A player plays for its host and does not sign in itself
+    if ((await accounts.get(profile.id))?.playerOf) error(409, m.auth_is_player())
     await accounts.saveAuthorization(tokens, profile)
 
     const previous = cookies.get(LOGIN_COOKIE)
@@ -51,5 +53,5 @@ export const load: PageServerLoad = async ({ url, cookies, locals }) => {
         sameSite: 'lax',
         expires: login.expiresAt
     })
-    redirect(303, (await accounts.get(profile.id))?.isAdmin ? '/admin' : '/')
+    redirect(303, '/account')
 }

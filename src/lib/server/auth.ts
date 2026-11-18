@@ -3,8 +3,8 @@ import { OAUTH_COOKIE, oauthClient } from './app'
 import { randomToken } from './crypto'
 import { authorizeUrl } from './spotify/oauth'
 
-/** Why the browser goes to Spotify: to sign in, or (admin only) to connect the room account. */
-export type AuthPurpose = 'signin' | 'room'
+/** Why the browser goes to Spotify: a host signs in, or a signed-in host connects their player. */
+export type AuthPurpose = 'signin' | 'player'
 
 /** Remembers the purpose and a random state in a cookie and sends the browser to Spotify. */
 export function startAuthorization(url: URL, cookies: Cookies, purpose: AuthPurpose): never {
@@ -20,9 +20,8 @@ export function startAuthorization(url: URL, cookies: Cookies, purpose: AuthPurp
         authorizeUrl(oauthClient, {
             redirectUri: `${url.origin}/auth/callback`,
             state,
-            // Always show which account signs in (with "Not you?"): after connecting the room account, the
-            // browser stays signed in to it at spotify.com, and the admin's next sign-in would silently be
-            // the room account
+            // Always show which account signs in (with "Not you?"): after connecting a player, the browser
+            // stays signed in to it at spotify.com, and the host's next sign-in would silently be the player
             showDialog: true
         }),
         { external: ['https://accounts.spotify.com'] }

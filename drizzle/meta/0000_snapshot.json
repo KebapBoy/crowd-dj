@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "c2401a49-1007-4df8-9970-21ea42293fd4",
+  "id": "e4dad7b9-e923-4530-8b4f-ce5604cd7e95",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "login": {
@@ -104,9 +104,9 @@
           "notNull": false,
           "autoincrement": false
         },
-        "approved_at": {
-          "name": "approved_at",
-          "type": "integer",
+        "player_of": {
+          "name": "player_of",
+          "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -161,8 +161,30 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
-      "foreignKeys": {},
+      "indexes": {
+        "spotify_account_player_of_unique": {
+          "name": "spotify_account_player_of_unique",
+          "columns": [
+            "player_of"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "spotify_account_player_of_spotify_account_id_fk": {
+          "name": "spotify_account_player_of_spotify_account_id_fk",
+          "tableFrom": "spotify_account",
+          "tableTo": "spotify_account",
+          "columnsFrom": [
+            "player_of"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}

@@ -1,7 +1,7 @@
-import { and, asc, eq, gt, lt } from 'drizzle-orm'
+import { and, eq, gt, lt, ne } from 'drizzle-orm'
 import { decrypt, encrypt, hashToken, randomToken } from './crypto'
 import type { Database } from './db/open'
-import { login, SETTING, setting, spotifyAccount, type SpotifyAccount } from './db/schema'
+import { login, spotifyAccount, type SpotifyAccount } from './db/schema'
 import {
     getProfile,
     refreshAccessToken,
@@ -13,7 +13,7 @@ import {
 
 /** Spotify refresh tokens expire 6 months after the sign-in that issued them. */
 export const REFRESH_TOKEN_LIFETIME_MS = 182 * 24 * 60 * 60 * 1000
-/** From then on the admin page warns that an account has to sign in again soon. */
+/** From then on the account page warns that an account has to sign in again soon. */
 export const EXPIRY_WARNING_MS = 14 * 24 * 60 * 60 * 1000
 /** How long a browser stays signed in. */
 export const LOGIN_LIFETIME_MS = 30 * 24 * 60 * 60 * 1000
@@ -27,9 +27,8 @@ export interface AccountView {
     id: string
     displayName: string | null
     imageUrl: string | null
-    approved: boolean
-    isAdmin: boolean
-    isRoom: boolean
+    /** Set for a player: the host it belongs to. */
+    playerOf: string | null
     tokenExpiresAt: Date
     tokenStatus: TokenStatus
 }
@@ -38,11 +37,13 @@ export interface AccountsDeps {
     db: Database
     key: Buffer
     client: OAuthClient
-    adminId: string
     now?: () => Date
 }
 
-export function createAccounts({ db, key, client, adminId, now = () => new Date() }: AccountsDeps) {
+/** Why an account cannot become a host's player. */
+export type PlayerProblem = 'self' | 'host' | 'taken'
+
+export function createAccounts({ db, key, client, now = () => new Date() }: AccountsDeps) {
     /** Refreshes running per account, so concurrent callers share one request. */
     const refreshing = new Map<string, Promise<string>>()
 
@@ -57,21 +58,16 @@ export function createAccounts({ db, key, client, adminId, now = () => new Date(
         return left <= EXPIRY_WARNING_MS ? 'expiring' : 'ok'
     }
 
-    async function roomAccountId(): Promise<string | null> {
-        const row = await db.query.setting.findFirst({
-            where: eq(setting.key, SETTING.roomAccountId)
-        })
-        return row?.value ?? null
+    function find(accountId: string) {
+        return db.query.spotifyAccount.findFirst({ where: eq(spotifyAccount.id, accountId) })
     }
 
-    function view(account: SpotifyAccount, roomId: string | null): AccountView {
+    function view(account: SpotifyAccount): AccountView {
         return {
             id: account.id,
             displayName: account.displayName,
             imageUrl: account.imageUrl,
-            approved: account.id === adminId || account.approvedAt !== null,
-            isAdmin: account.id === adminId,
-            isRoom: account.id === roomId,
+            playerOf: account.playerOf,
             tokenExpiresAt: tokenExpiresAt(account),
             tokenStatus: tokenStatus(account)
         }
@@ -105,6 +101,37 @@ export function createAccounts({ db, key, client, adminId, now = () => new Date(
         }
     }
 
+    async function upsert(
+        database: Pick<Database, 'insert'>,
+        tokens: TokenResponse,
+        profile: SpotifyProfile,
+        playerOf?: string
+    ) {
+        if (!tokens.refreshToken) throw new Error('Spotify sent no refresh token')
+        const at = now()
+        const values = {
+            displayName: profile.displayName,
+            imageUrl: profile.imageUrl,
+            refreshToken: encrypt(tokens.refreshToken, key),
+            accessToken: encrypt(tokens.accessToken, key),
+            accessTokenExpiresAt: new Date(at.getTime() + tokens.expiresIn * 1000),
+            scope: tokens.scope,
+            authorizedAt: at,
+            revokedAt: null,
+            ...(playerOf && { playerOf })
+        }
+        await database
+            .insert(spotifyAccount)
+            .values({ id: profile.id, createdAt: at, ...values })
+            .onConflictDoUpdate({ target: spotifyAccount.id, set: values })
+    }
+
+    /** Deletes an account; its sign-ins and its player go with it (ON DELETE CASCADE). */
+    async function remove(accountId: string) {
+        await db.delete(login).where(eq(login.accountId, accountId))
+        await db.delete(spotifyAccount).where(eq(spotifyAccount.id, accountId))
+    }
+
     async function refresh(account: SpotifyAccount): Promise<string> {
         const refreshToken = await decryptToken(account, account.refreshToken)
         let tokens: TokenResponse
@@ -127,31 +154,32 @@ export function createAccounts({ db, key, client, adminId, now = () => new Date(
 
     return {
         /**
-         * Stores the tokens of a completed sign-in and the profile they belong to. A new sign-in
-         * restarts the 6 months of the refresh token and clears a revocation.
+         * Stores the tokens of a host's completed sign-in and the profile they belong to. A new
+         * sign-in restarts the 6 months of the refresh token and clears a revocation.
          */
         async saveAuthorization(
             tokens: TokenResponse,
             profile?: SpotifyProfile
         ): Promise<SpotifyProfile> {
-            if (!tokens.refreshToken) throw new Error('Spotify sent no refresh token')
             profile ??= await getProfile(tokens.accessToken, client.fetch)
-            const at = now()
-            const values = {
-                displayName: profile.displayName,
-                imageUrl: profile.imageUrl,
-                refreshToken: encrypt(tokens.refreshToken, key),
-                accessToken: encrypt(tokens.accessToken, key),
-                accessTokenExpiresAt: new Date(at.getTime() + tokens.expiresIn * 1000),
-                scope: tokens.scope,
-                authorizedAt: at,
-                revokedAt: null
-            }
-            await db
-                .insert(spotifyAccount)
-                .values({ id: profile.id, createdAt: at, ...values })
-                .onConflictDoUpdate({ target: spotifyAccount.id, set: values })
+            await upsert(db, tokens, profile)
             return profile
+        },
+
+        /**
+         * Stores the tokens of an account a host connected as their player, together with the link to
+         * the host, so a half-done connection never leaves it looking like a host. A previous player
+         * is deleted with its tokens. Check `playerProblem` first.
+         */
+        async connectPlayer(hostId: string, tokens: TokenResponse, profile: SpotifyProfile) {
+            await db.transaction(async (tx) => {
+                await tx
+                    .delete(spotifyAccount)
+                    .where(
+                        and(eq(spotifyAccount.playerOf, hostId), ne(spotifyAccount.id, profile.id))
+                    )
+                await upsert(tx, tokens, profile, hostId)
+            })
         },
 
         /** A valid access token for the account, refreshed when needed. */
@@ -160,9 +188,7 @@ export function createAccounts({ db, key, client, adminId, now = () => new Date(
             let promise = refreshing.get(accountId)
             if (promise) return promise
             promise = (async () => {
-                const account = await db.query.spotifyAccount.findFirst({
-                    where: eq(spotifyAccount.id, accountId)
-                })
+                const account = await find(accountId)
                 if (!account) throw new Error(`Unknown Spotify account ${accountId}`)
                 if (account.revokedAt)
                     throw new SpotifyError('The Spotify account has to sign in again', 401, true)
@@ -188,66 +214,39 @@ export function createAccounts({ db, key, client, adminId, now = () => new Date(
         },
 
         async get(accountId: string): Promise<AccountView | null> {
+            const account = await find(accountId)
+            return account ? view(account) : null
+        },
+
+        /** The player a host connected, if any. */
+        async player(hostId: string): Promise<AccountView | null> {
             const account = await db.query.spotifyAccount.findFirst({
-                where: eq(spotifyAccount.id, accountId)
+                where: eq(spotifyAccount.playerOf, hostId)
             })
-            return account ? view(account, await roomAccountId()) : null
-        },
-
-        async list(): Promise<AccountView[]> {
-            const [accounts, roomId] = await Promise.all([
-                db.query.spotifyAccount.findMany({ orderBy: asc(spotifyAccount.createdAt) }),
-                roomAccountId()
-            ])
-            return accounts.map((account) => view(account, roomId))
-        },
-
-        async roomAccount(): Promise<AccountView | null> {
-            const roomId = await roomAccountId()
-            return roomId ? this.get(roomId) : null
-        },
-
-        async setRoomAccount(accountId: string | null) {
-            if (accountId === null) {
-                await db.delete(setting).where(eq(setting.key, SETTING.roomAccountId))
-                return
-            }
-            await db
-                .insert(setting)
-                .values({ key: SETTING.roomAccountId, value: accountId })
-                .onConflictDoUpdate({ target: setting.key, set: { value: accountId } })
+            return account ? view(account) : null
         },
 
         /**
-         * Makes another account the room account, or none. The previous one is deleted with its
-         * tokens unless it also signs in on its own (the admin, an approved host, or signed in).
+         * Whether an account may become the host's player: not the host itself, not another host
+         * (an account that signs in on its own), not another host's player.
          */
-        async replaceRoomAccount(accountId: string | null) {
-            const previousId = await roomAccountId()
-            await this.setRoomAccount(accountId)
-            if (!previousId || previousId === accountId || previousId === adminId) return
-            const previous = await db.query.spotifyAccount.findFirst({
-                where: eq(spotifyAccount.id, previousId)
-            })
-            const signedIn = await db.query.login.findFirst({
-                where: and(eq(login.accountId, previousId), gt(login.expiresAt, now()))
-            })
-            if (previous && !previous.approvedAt && !signedIn) await this.remove(previousId)
+        async playerProblem(hostId: string, accountId: string): Promise<PlayerProblem | null> {
+            if (accountId === hostId) return 'self'
+            const account = await find(accountId)
+            if (!account) return null
+            if (account.playerOf === null) return 'host'
+            return account.playerOf === hostId ? null : 'taken'
         },
 
-        async setApproved(accountId: string, approved: boolean) {
-            await db
-                .update(spotifyAccount)
-                .set({ approvedAt: approved ? now() : null })
-                .where(eq(spotifyAccount.id, accountId))
+        /** Deletes the host's player with its tokens; the host's own account plays again. */
+        async removePlayer(hostId: string) {
+            const player = await this.player(hostId)
+            if (player) await remove(player.id)
         },
 
-        /** Deletes the account with its tokens and sign-ins. The admin account cannot be removed. */
-        async remove(accountId: string) {
-            if (accountId === adminId) throw new Error('The admin account cannot be removed')
-            if ((await roomAccountId()) === accountId) await this.setRoomAccount(null)
-            await db.delete(login).where(eq(login.accountId, accountId))
-            await db.delete(spotifyAccount).where(eq(spotifyAccount.id, accountId))
+        /** Deletes a host with its player, tokens and sign-ins. */
+        async removeHost(hostId: string) {
+            await remove(hostId)
         },
 
         /** Signs a browser in; returns the token for its cookie. */

@@ -26,7 +26,7 @@ const handleParaglide: Handle = ({ event, resolve }) =>
         )
     })
 
-/** The Spotify account this browser is signed in with (hosts and the admin only). */
+/** The Spotify account this browser is signed in with (hosts only). */
 const handleLogin: Handle = async ({ event, resolve }) => {
     const token = event.cookies.get(LOGIN_COOKIE)
     event.locals.account = token ? await accounts.accountForLogin(token) : null

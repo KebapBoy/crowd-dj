@@ -3,8 +3,8 @@ import { startAuthorization } from '#lib/server/auth.ts'
 import { m } from '#lib/paraglide/messages.js'
 import type { PageServerLoad } from './$types'
 
-/** The admin connects (or swaps) the room account: its tokens are stored, nobody is signed in. */
+/** A signed-in host connects (or swaps) their player: its tokens are stored, nobody signs in. */
 export const load: PageServerLoad = ({ url, cookies, locals }) => {
-    if (!locals.account?.isAdmin) error(403, m.admin_only())
-    return startAuthorization(url, cookies, 'room')
+    if (!locals.account) error(401, m.sign_in_required())
+    return startAuthorization(url, cookies, 'player')
 }

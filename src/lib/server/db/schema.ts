@@ -1,28 +1,25 @@
-import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
+import { integer, sqliteTable, text, type AnySQLiteColumn } from 'drizzle-orm/sqlite-core'
 
-/** Instance-wide settings as key/value pairs, e.g. which connected account is the room account. */
+/** Instance-wide settings as key/value pairs. */
 export const setting = sqliteTable('setting', {
     key: text('key').primaryKey(),
     value: text('value').notNull()
 })
 
-/** Keys of the `setting` table. */
-export const SETTING = {
-    /** Spotify user ID of the room account (a row in `spotify_account`). */
-    roomAccountId: 'room_account_id'
-} as const
-
 /**
- * A Spotify account that signed in (admin, personal host) or was connected as the room account.
- * Tokens are encrypted with APP_SECRET (see `crypto.ts`).
+ * A Spotify account: a host that signed in, or the player a host connected (`player_of`), which
+ * plays the host's sessions instead of the host's own account. Tokens are encrypted with
+ * APP_SECRET (see `crypto.ts`).
  */
 export const spotifyAccount = sqliteTable('spotify_account', {
     /** Spotify user ID */
     id: text('id').primaryKey(),
     displayName: text('display_name'),
     imageUrl: text('image_url'),
-    /** Approved by the admin to host sessions on their own device. */
-    approvedAt: integer('approved_at', { mode: 'timestamp_ms' }),
+    /** Set for a player: the host it belongs to. A host has at most one player. */
+    playerOf: text('player_of')
+        .unique()
+        .references((): AnySQLiteColumn => spotifyAccount.id, { onDelete: 'cascade' }),
     refreshToken: text('refresh_token').notNull(),
     accessToken: text('access_token'),
     accessTokenExpiresAt: integer('access_token_expires_at', { mode: 'timestamp_ms' }),

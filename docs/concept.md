@@ -23,14 +23,15 @@ These shape every decision below. Sources at the end.
 
 ## Roles
 
-| Role          | Signs in with Spotify                                  | What they do                                                                                                             |
-| ------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
-| Admin         | Yes (`ADMIN_SPOTIFY_USER_ID`, usually the app owner)   | Connects and swaps the room account, approves personal hosts, sees token expiry                                          |
-| Room account  | Connected once by the admin, stays connected           | A Premium account that plays on the room's speaker. Anyone may start a session on it                                     |
-| Personal host | Yes (Premium, on the allowlist, approved by the admin) | Starts sessions that play on their own device                                                                            |
-| Participant   | No                                                     | Profile per browser: picks a name once, kept in a cookie; a personal link or QR code moves the profile to another device |
+| Role        | Signs in with Spotify                            | What they do                                                                                                             |
+| ----------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| Host        | Yes (Premium, on the allowlist)                  | Starts sessions; manages their own sign-in and player on "My account"                                                    |
+| Player      | Connected by its host, never signs in on its own | Optional second Premium account of a host that plays the host's sessions instead of the host's own account               |
+| Participant | No                                               | Profile per browser: picks a name once, kept in a cookie; a personal link or QR code moves the profile to another device |
 
-The room account is swappable in the app; nothing in the configuration names it.
+**Who may host:** everyone Spotify lets sign in. The allowlist in the developer dashboard (at most 5 accounts, players included) is the access control; crowd-dj has no admin and no approval of its own, since that would only repeat the allowlist.
+
+**Player:** a session plays through the host's player if one is connected, else through the host's own account. A player keeps the music out of the host's listening history (e.g. a free place in a family plan) and has to be signed in on the device at the speaker. It is connected through Spotify's account dialog ("Not you?"); an account that signs in on its own (a host) or is another host's player cannot become one, and a player cannot sign in as a host. Swapping or disconnecting a player deletes its stored tokens.
 
 ## Music
 
@@ -61,29 +62,30 @@ No track plays twice in a session.
 
 - **Anonymous sessions:** nobody sees who wished or added a track, not even the host; everyone sees "yours" on their own tracks. The list of participants stays visible.
 - **Skipping:** the host can always skip. Whether people may skip their own tracks without a vote is a session setting. **Skip voting** (optional): a track is skipped when it has at least X votes and Y % of the active participants voted (X and Y set by the host).
-- **Ending:** the host ends it, or it ends by itself after a while with nothing playing and nobody connected (around 30 minutes). Then the join link stops working. At most one session per host account at a time.
-- **Someone plays something else** in the Spotify app of the host account: the session pauses (no more tracks handed to Spotify) and crowd-dj offers "Session paused – resume?". A pause in the Spotify app just makes it wait.
+- **Ending:** the host ends it, or it ends by itself after a while with nothing playing and nobody connected (around 30 minutes). Then the join link stops working. At most one session per playing account at a time.
+- **Someone plays something else** in the Spotify app of the playing account: the session pauses (no more tracks handed to Spotify) and crowd-dj offers "Session paused – resume?". A pause in the Spotify app just makes it wait.
 - The playing track always shows cover art, title, artists and a link back to Spotify.
 
 ## Architecture
 
 - One container: SvelteKit (adapter-node), SQLite through Drizzle and the libsql client, live updates with server-sent events.
-- **Session engine** (server side, one per active session): polls `GET /me/player` of the host account every 2 to 5 seconds. About 15 seconds before the current track ends it picks the next one by the session's mode and sends it with `POST /me/player/queue`; on a track change it marks the track as played, resets votes and notifies everyone. Skip: `POST /me/player/next`. No active device: tell the host and offer the devices from `GET /me/player/devices` (transfer playback). Exactly one track of crowd-dj's queue is in Spotify's queue at a time.
+- **Session engine** (server side, one per active session): polls `GET /me/player` of the playing account (the host's player, else the host) every 2 to 5 seconds. About 15 seconds before the current track ends it picks the next one by the session's mode and sends it with `POST /me/player/queue`; on a track change it marks the track as played, resets votes and notifies everyone. Skip: `POST /me/player/next`. No active device: tell the host and offer the devices from `GET /me/player/devices` (transfer playback). Exactly one track of crowd-dj's queue is in Spotify's queue at a time.
 - **Inbox sync:** polls the inbox playlists every 30 to 60 seconds, using `snapshot_id` to skip unchanged ones.
 - **Search and links** use the host account's token. Tracks are cached in the database.
-- **Data model (rough):** `spotify_accounts` (role room/personal, encrypted refresh token, expiry), `profiles` (name, cookie token, optional Spotify user ID), `sessions` (host account, settings, join code, state), `session_members`, `pool_items`, `wishes`, `plays`, `skip_votes`, `tracks` (cache), `setting` (instance settings, e.g. which account is the room account), `login` (browsers signed in with Spotify; the cookie holds a random token, the table its hash).
+- **Data model (rough):** `spotify_account` (hosts and their players via `player_of`, encrypted tokens, sign-in time for the 6-month expiry), `profiles` (name, cookie token, optional Spotify user ID), `sessions` (host account, settings, join code, state), `session_members`, `pool_items`, `wishes`, `plays`, `skip_votes`, `tracks` (cache), `setting` (instance settings), `login` (browsers signed in with Spotify; the cookie holds a random token, the table its hash).
 - **Configuration:** see `.env.example`. Stored Spotify tokens are encrypted with `APP_SECRET` (AES-256-GCM). One sign-in asks for every scope crowd-dj will need (playback state and control, private and collaborative playlists), so hosts consent once.
 - **Quota:** poll only while sessions are active; cache tracks.
 - **Languages:** English and German (Paraglide, `messages/`); the browser's language, or the one picked in the app.
 
 ## Scope
 
-**MVP:** admin (sign-in, room account, approving hosts, token status); participant profiles; sessions with join link, QR code and settings; pools and wishes (search, pasted links, inbox playlists); the session engine with skip and skip voting; "now playing" and "up next".
+**MVP:** host sign-in with "My account" (player, token status); participant profiles; sessions with join link, QR code and settings; pools and wishes (search, pasted links, inbox playlists); the session engine with skip and skip voting; "now playing" and "up next".
 
 **Later:**
 
 - **Listening along** from elsewhere: a listener signs in with their own Premium account (one allowlist place each) and plays either in a browser tab of crowd-dj (Web Playback SDK, desktop browsers only) or on their running Spotify app; crowd-dj starts the same track at the same position.
 - Share target on Android (PWA), so "Share → crowd-dj" adds a track.
+- **Shared player:** a host marks their player as shared and sets a start code; anyone who knows the code starts a session on it without a Spotify sign-in. Worth it once a player is permanently connected to a speaker in the room (then colleagues without an allowlist place can start sessions).
 
 ## Sources
 
