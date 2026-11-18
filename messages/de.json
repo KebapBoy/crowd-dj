@@ -1,0 +1,6 @@
+{
+    "$schema": "https://inlang.com/schema/inlang-message-format",
+    "app_name": "crowd-dj",
+    "tagline": "Ein Raum, ein Lautsprecher, die Musik von allen: eine gemeinsame Warteschlange, die reihum spielt.",
+    "language": "Sprache"
+}

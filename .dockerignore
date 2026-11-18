@@ -1,0 +1,14 @@
+# Not part of the build context
+node_modules
+.svelte-kit
+build
+src/lib/paraglide
+project.inlang/cache
+.env
+.env.*
+*.db
+.git
+.devcontainer
+.vscode
+deploy
+docs

@@ -1,0 +1,46 @@
+// Devcontainer with Node 26, git and Claude Code (stage "dev" of the Dockerfile), plus Docker
+// (docker-in-docker) for building the image.
+// Claude Code keeps its settings and sign-in in the volume at ~/.claude, so they survive rebuilds;
+// your user-level ~/.claude/CLAUDE.md from the host is mounted in read-only.
+// .devcontainer/serve.sh runs the dev server with hot reload on port 5173. Open it as
+// http://127.0.0.1:5173 (not localhost): that is the redirect URI Spotify accepts for development.
+{
+    "name": "crowd-dj",
+    "build": {
+        "dockerfile": "../Dockerfile",
+        "context": "..",
+        "target": "dev"
+    },
+    // The container runs as root so docker-in-docker can start dockerd (the image has no sudo);
+    // VS Code, its terminals and Claude Code run as node.
+    // Runs on the host before the container starts: copies your user-level ~/.claude/CLAUDE.md (or an
+    // empty file if there is none) to .devcontainer/host/, which is mounted read-only as Claude Code's
+    // CLAUDE.md in the container. cp overwrites in place, so the mount picks up changes on every start.
+    "initializeCommand": "mkdir -p .devcontainer/host && { cp ~/.claude/CLAUDE.md .devcontainer/host/CLAUDE.md 2>/dev/null || : > .devcontainer/host/CLAUDE.md; }",
+    "containerUser": "root",
+    "remoteUser": "node",
+    "features": {
+        "ghcr.io/devcontainers/features/docker-in-docker:2": { "moby": false }
+    },
+    "mounts": [
+        "source=crowd-dj-claude-${devcontainerId},target=/home/node/.claude,type=volume",
+        "source=${localWorkspaceFolder}/.devcontainer/host/CLAUDE.md,target=/home/node/.claude/CLAUDE.md,type=bind,readonly"
+    ],
+    "forwardPorts": [5173],
+    "portsAttributes": {
+        "5173": { "label": "crowd-dj (dev server)" }
+    },
+    "postCreateCommand": "{ test -f .env || cp .env.example .env; } && npm ci",
+    "postStartCommand": "setsid .devcontainer/serve.sh > /tmp/serve.log 2>&1 &",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "svelte.svelte-vscode",
+                "esbenp.prettier-vscode",
+                "dbaeumer.vscode-eslint",
+                "editorconfig.editorconfig",
+                "anthropic.claude-code"
+            ]
+        }
+    }
+}

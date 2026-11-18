@@ -1,0 +1,31 @@
+# crowd-dj for a real installation behind a reverse proxy (see README, "Running").
+# Use it as it is, e.g. as a git stack with compose path deploy/compose.yaml, and set the variables
+# below in the environment of the stack (keys and comments: .env.example).
+services:
+    crowd-dj:
+        build: ..
+        image: crowd-dj:local
+        restart: unless-stopped
+        environment:
+            TZ: ${TZ:-UTC}
+            # Public URL, e.g. https://dj.example.com; the Spotify redirect URI is <ORIGIN>/auth/callback
+            ORIGIN: ${ORIGIN:?set ORIGIN}
+            SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID:?set SPOTIFY_CLIENT_ID}
+            SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET:?set SPOTIFY_CLIENT_SECRET}
+            ADMIN_SPOTIFY_USER_ID: ${ADMIN_SPOTIFY_USER_ID:?set ADMIN_SPOTIFY_USER_ID}
+            APP_SECRET: ${APP_SECRET:?set APP_SECRET}
+        volumes:
+            # SQLite database (accounts with encrypted tokens, profiles, pools, sessions)
+            - data:/data
+        networks:
+            - proxy
+        # No published port: only the reverse proxy talks to it (port 3000)
+
+volumes:
+    data:
+
+networks:
+    # The network your reverse proxy is in
+    proxy:
+        name: ${CROWD_DJ_PROXY_NETWORK:-proxy}
+        external: true

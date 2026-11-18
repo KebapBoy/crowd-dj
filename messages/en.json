@@ -1,0 +1,6 @@
+{
+    "$schema": "https://inlang.com/schema/inlang-message-format",
+    "app_name": "crowd-dj",
+    "tagline": "One room, one speaker, everyone's music: a shared queue that takes turns.",
+    "language": "Language"
+}
