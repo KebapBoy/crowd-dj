@@ -30,6 +30,7 @@ WORKDIR /app
 COPY --from=build /app/package.json ./
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/build ./build
+COPY --from=build /app/drizzle ./drizzle
 RUN mkdir /data && chown node:node /data
 ENV NODE_ENV=production PORT=3000 DATABASE_URL=file:/data/crowd-dj.db
 USER node

@@ -71,8 +71,8 @@ No track plays twice in a session.
 - **Session engine** (server side, one per active session): polls `GET /me/player` of the host account every 2 to 5 seconds. About 15 seconds before the current track ends it picks the next one by the session's mode and sends it with `POST /me/player/queue`; on a track change it marks the track as played, resets votes and notifies everyone. Skip: `POST /me/player/next`. No active device: tell the host and offer the devices from `GET /me/player/devices` (transfer playback). Exactly one track of crowd-dj's queue is in Spotify's queue at a time.
 - **Inbox sync:** polls the inbox playlists every 30 to 60 seconds, using `snapshot_id` to skip unchanged ones.
 - **Search and links** use the host account's token. Tracks are cached in the database.
-- **Data model (rough):** `spotify_accounts` (role room/personal, encrypted refresh token, expiry), `profiles` (name, cookie token, optional Spotify user ID), `sessions` (host account, settings, join code, state), `session_members`, `pool_items`, `wishes`, `plays`, `skip_votes`, `tracks` (cache), `setting` (instance settings).
-- **Configuration:** see `.env.example`. Stored Spotify tokens are encrypted with `APP_SECRET`.
+- **Data model (rough):** `spotify_accounts` (role room/personal, encrypted refresh token, expiry), `profiles` (name, cookie token, optional Spotify user ID), `sessions` (host account, settings, join code, state), `session_members`, `pool_items`, `wishes`, `plays`, `skip_votes`, `tracks` (cache), `setting` (instance settings, e.g. which account is the room account), `login` (browsers signed in with Spotify; the cookie holds a random token, the table its hash).
+- **Configuration:** see `.env.example`. Stored Spotify tokens are encrypted with `APP_SECRET` (AES-256-GCM). One sign-in asks for every scope crowd-dj will need (playback state and control, private and collaborative playlists), so hosts consent once.
 - **Quota:** poll only while sessions are active; cache tracks.
 - **Languages:** English and German (Paraglide, `messages/`); the browser's language, or the one picked in the app.
 

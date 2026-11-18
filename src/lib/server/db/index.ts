@@ -1,8 +1,7 @@
-import { createClient } from '@libsql/client'
-import { drizzle } from 'drizzle-orm/libsql'
-import * as schema from './schema'
+import { openDatabase } from './open'
 import { DATABASE_URL } from '$app/env/private'
 
-const client = createClient({ url: DATABASE_URL })
+export type { Database } from './open'
 
-export const db = drizzle(client, { schema })
+/** The app's database. */
+export const db = openDatabase(DATABASE_URL)
