@@ -31,7 +31,7 @@ The database is created and migrated when the server starts.
 ### My account
 
 - **Player:** connect, swap or disconnect (swapping and disconnecting delete the player's stored tokens). A host's own account or another host cannot become a player, and a player cannot sign in as a host: Spotify always shows which account signs in, so pick "Not you?" when it is the wrong one.
-- **Token expiry:** Spotify refresh tokens expire 6 months after a sign-in. The host and the player show until when their sign-in is valid; two weeks before, they say "Expires soon". Signing in again (for the player: connecting it again) renews it. When Spotify revokes a token, or `APP_SECRET` was changed, it shows "Revoked".
+- **Token expiry:** Spotify refresh tokens expire 6 months after a sign-in. The host and the player show until when their sign-in is valid; two weeks before, they say "Expires soon", and a banner on every page asks the host to renew it. Signing in again (for the player: connecting it again) renews it. When Spotify revokes a token, or `APP_SECRET` was changed, it shows "Revoked".
 - **Delete my account:** deletes the stored tokens of the host and the player and signs the host out everywhere.
 
 ## Configuration

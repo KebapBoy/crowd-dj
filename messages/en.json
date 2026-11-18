@@ -38,5 +38,11 @@
     "auth_player_is_self": "That is your own account. In Spotify's dialog, choose “Not you?” and sign in with the player.",
     "auth_player_is_host": "This account signs in to crowd-dj as a host itself, so it cannot be your player.",
     "auth_is_player": "This account is a host's player and does not sign in itself. In Spotify's dialog, choose “Not you?” and sign in with your own account.",
-    "auth_player_taken": "This account is already another host's player."
+    "auth_player_taken": "This account is already another host's player.",
+    "renewal_expiring": "The Spotify sign-in of {name} expires on {date}.",
+    "renewal_expired": "The Spotify sign-in of {name} has expired: sessions cannot play through it.",
+    "renewal_hint_host": "Sign in again to renew it for 6 months.",
+    "renewal_hint_player": "Connect the player again to renew it for 6 months.",
+    "renewal_action_host": "Sign in again",
+    "renewal_action_player": "Connect player again"
 }

@@ -38,5 +38,11 @@
     "auth_player_is_self": "Das ist dein eigener Account. Wähle im Spotify-Dialog „Nicht du?“ und melde dich mit dem Player an.",
     "auth_player_is_host": "Dieser Account meldet sich selbst als Host bei crowd-dj an und kann daher nicht dein Player sein.",
     "auth_is_player": "Dieser Account ist der Player eines Hosts und meldet sich nicht selbst an. Wähle im Spotify-Dialog „Nicht du?“ und melde dich mit deinem eigenen Account an.",
-    "auth_player_taken": "Dieser Account ist bereits der Player eines anderen Hosts."
+    "auth_player_taken": "Dieser Account ist bereits der Player eines anderen Hosts.",
+    "renewal_expiring": "Die Spotify-Anmeldung von {name} läuft am {date} ab.",
+    "renewal_expired": "Die Spotify-Anmeldung von {name} ist abgelaufen: Sessions können darüber nicht spielen.",
+    "renewal_hint_host": "Melde dich neu an, um sie um 6 Monate zu verlängern.",
+    "renewal_hint_player": "Verbinde den Player neu, um sie um 6 Monate zu verlängern.",
+    "renewal_action_host": "Neu anmelden",
+    "renewal_action_player": "Player neu verbinden"
 }
