@@ -4,7 +4,7 @@
     import { resolve } from '$app/paths'
     import favicon from '#lib/assets/favicon.svg'
     import LocaleSwitch from '#lib/components/locale-switch.svelte'
-    import RenewalBanner from '#lib/components/RenewalBanner.svelte'
+    import RenewalBanner from '#lib/components/renewal-banner.svelte'
     import ThemeToggle from '#lib/components/theme-toggle.svelte'
     import { Separator } from '#lib/components/ui/separator/index.js'
     import { Toaster } from '#lib/components/ui/sonner/index.js'

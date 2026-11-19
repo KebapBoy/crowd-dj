@@ -51,5 +51,14 @@
     "theme_toggle": "Design: {current}. Wechseln zu {next}",
     "language_choose": "Sprache: {language}. Andere Sprache wählen",
     "home": "{app}, Startseite",
-    "version": "Version {version}"
+    "version": "Version {version}",
+    "track_cover": "Cover von {album}",
+    "track_open_spotify": "{title} in Spotify öffnen",
+    "account_player_removed": "Player getrennt.",
+    "account_deleted": "Account gelöscht.",
+    "account_player_remove_title": "Player trennen?",
+    "account_player_remove_hint": "Deine Sessions spielen wieder über deinen eigenen Account. Du kannst jederzeit wieder einen Player verbinden.",
+    "account_delete_title": "Account löschen?",
+    "cancel": "Abbrechen",
+    "action_failed": "Das hat nicht geklappt. Bitte versuch es noch einmal."
 }

@@ -1,7 +1,10 @@
 <script lang="ts">
+    import LogInIcon from '@lucide/svelte/icons/log-in'
+    import UserIcon from '@lucide/svelte/icons/user'
     import { resolve } from '$app/paths'
+    import { Button } from '#lib/components/ui/button/index.js'
+    import * as Card from '#lib/components/ui/card/index.js'
     import { m } from '#lib/paraglide/messages.js'
-    import { getLocale, locales, setLocale } from '#lib/paraglide/runtime.js'
     import type { PageProps } from './$types'
 
     let { data }: PageProps = $props()
@@ -11,30 +14,37 @@
     <title>{m.app_name()}</title>
 </svelte:head>
 
-<main>
-    <h1>{m.app_name()}</h1>
-    <p>{m.tagline()}</p>
-
-    <section>
-        <h2>{m.host_heading()}</h2>
-        {#if data.account}
-            <p>{m.host_signed_in_as({ name: data.account.displayName ?? data.account.id })}</p>
-            <p><a href={resolve('/account')}>{m.account_title()}</a></p>
-        {:else}
-            <p>{m.host_intro()}</p>
-            <p><a href={resolve('/auth/login')}>{m.sign_in_spotify()}</a></p>
-        {/if}
+<div class="mx-auto flex max-w-2xl flex-col gap-6">
+    <section class="flex flex-col gap-2 py-4 sm:py-8">
+        <h1 class="text-3xl font-semibold tracking-tight sm:text-4xl">{m.app_name()}</h1>
+        <p class="text-lg text-balance text-muted-foreground">{m.tagline()}</p>
     </section>
 
-    <nav aria-label={m.language()}>
-        {#each locales as locale (locale)}
-            <button
-                type="button"
-                disabled={locale === getLocale()}
-                onclick={() => setLocale(locale)}
-            >
-                {locale}
-            </button>
-        {/each}
-    </nav>
-</main>
+    <Card.Root>
+        <Card.Header>
+            <Card.Title><h2>{m.host_heading()}</h2></Card.Title>
+            <Card.Description>
+                {#if data.account}
+                    {m.host_signed_in_as({
+                        name: data.account.displayName ?? data.account.id
+                    })}
+                {:else}
+                    {m.host_intro()}
+                {/if}
+            </Card.Description>
+        </Card.Header>
+        <Card.Footer>
+            {#if data.account}
+                <Button href={resolve('/account')} class="h-11 w-full sm:h-9 sm:w-auto">
+                    <UserIcon data-icon="inline-start" />
+                    {m.account_title()}
+                </Button>
+            {:else}
+                <Button href={resolve('/auth/login')} class="h-11 w-full sm:h-9 sm:w-auto">
+                    <LogInIcon data-icon="inline-start" />
+                    {m.sign_in_spotify()}
+                </Button>
+            {/if}
+        </Card.Footer>
+    </Card.Root>
+</div>

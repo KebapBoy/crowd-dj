@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Light and dark theme (follows the system until you pick one in the header) and a language menu in the header (English, German), built for phones first. Everything is served by crowd-dj itself; no fonts or scripts are loaded from elsewhere.
+- New look for all pages, built for phones first: light and dark theme (follows the system until you pick one in the header), a language menu in the header (English, German), confirmation dialogs for disconnecting the player and deleting the account, and a short message after each action. Everything is served by crowd-dj itself; no fonts or scripts are loaded from elsewhere.
 - Spotify sign-in for hosts: everyone on the Spotify app's allowlist. Tokens are stored encrypted with `APP_SECRET` and refreshed automatically.
 - "My account" page (`/account`): connect, swap and disconnect an optional player account that plays the host's sessions, see until when each sign-in is valid (with a warning two weeks before it expires), and delete the account.
 - A banner on every page warns a host two weeks before their or their player's Spotify sign-in expires, and when it has expired, with a button to renew it.
