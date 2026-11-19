@@ -2,9 +2,14 @@ import { paraglideVitePlugin } from '@inlang/paraglide-js'
 import { defineConfig } from 'vitest/config'
 import adapter from '@sveltejs/adapter-node'
 import { sveltekit } from '@sveltejs/kit/vite'
+import tailwindcss from '@tailwindcss/vite'
+import pkg from './package.json' with { type: 'json' }
 
 export default defineConfig({
+    // Shown in the header
+    define: { __APP_VERSION__: JSON.stringify(pkg.version) },
     plugins: [
+        tailwindcss(),
         sveltekit({
             compilerOptions: {
                 // Force runes mode for the project, except for libraries. Can be removed in svelte 6.

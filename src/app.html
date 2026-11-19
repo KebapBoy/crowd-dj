@@ -4,6 +4,23 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="text-scale" content="scale" />
+        <script>
+            // Sets the dark class before the first paint, as mode-watcher's own head script would
+            // (disabled in +layout.svelte): the stored mode, else the system's.
+            ;(() => {
+                let mode = 'system'
+                try {
+                    mode = localStorage.getItem('mode-watcher-mode') ?? mode
+                } catch {
+                    // No storage (e.g. blocked site data): follow the system
+                }
+                const dark =
+                    mode === 'dark' ||
+                    (mode !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches)
+                document.documentElement.classList.toggle('dark', dark)
+                document.documentElement.style.colorScheme = dark ? 'dark' : 'light'
+            })()
+        </script>
         %sveltekit.head%
     </head>
     <body data-sveltekit-preload-data="hover">

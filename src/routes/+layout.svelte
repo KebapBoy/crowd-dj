@@ -1,6 +1,15 @@
 <script lang="ts">
+    import '../app.css'
+    import { ModeWatcher } from 'mode-watcher'
+    import { resolve } from '$app/paths'
     import favicon from '#lib/assets/favicon.svg'
+    import LocaleSwitch from '#lib/components/locale-switch.svelte'
     import RenewalBanner from '#lib/components/RenewalBanner.svelte'
+    import ThemeToggle from '#lib/components/theme-toggle.svelte'
+    import { Separator } from '#lib/components/ui/separator/index.js'
+    import { Toaster } from '#lib/components/ui/sonner/index.js'
+    import * as Tooltip from '#lib/components/ui/tooltip/index.js'
+    import { m } from '#lib/paraglide/messages.js'
     import type { LayoutProps } from './$types'
 
     let { children, data }: LayoutProps = $props()
@@ -10,6 +19,37 @@
     <link rel="icon" href={favicon} />
 </svelte:head>
 
-<RenewalBanner renewals={data.renewals} />
+<!-- The dark class is set before the first paint by the script in app.html -->
+<ModeWatcher disableHeadScriptInjection />
+<Toaster position="bottom-right" closeButton />
 
-{@render children()}
+<Tooltip.Provider delayDuration={300}>
+    <header class="sticky top-0 z-40 border-b bg-background/90 backdrop-blur">
+        <div class="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4 sm:h-12">
+            <a
+                href={resolve('/')}
+                class="font-semibold tracking-tight"
+                aria-label={m.home({ app: m.app_name() })}
+            >
+                {m.app_name()}
+            </a>
+            <Separator orientation="vertical" class="data-vertical:h-4 data-vertical:self-center" />
+            <span
+                class="text-xs text-muted-foreground"
+                title={m.version({ version: __APP_VERSION__ })}
+            >
+                {__APP_VERSION__}
+            </span>
+            <div class="ml-auto flex items-center gap-1">
+                <LocaleSwitch />
+                <ThemeToggle />
+            </div>
+        </div>
+    </header>
+
+    <RenewalBanner renewals={data.renewals} />
+
+    <main class="mx-auto max-w-6xl px-4 py-4 sm:py-6">
+        {@render children()}
+    </main>
+</Tooltip.Provider>

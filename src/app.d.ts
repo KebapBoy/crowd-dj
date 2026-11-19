@@ -3,6 +3,9 @@
 import type { AccountView } from '#lib/server/accounts.ts'
 
 declare global {
+    /** Version from package.json, set by vite.config.ts. */
+    const __APP_VERSION__: string
+
     namespace App {
         // interface Error {}
         interface Locals {

@@ -44,5 +44,12 @@
     "renewal_hint_host": "Melde dich neu an, um sie um 6 Monate zu verlängern.",
     "renewal_hint_player": "Verbinde den Player neu, um sie um 6 Monate zu verlängern.",
     "renewal_action_host": "Neu anmelden",
-    "renewal_action_player": "Player neu verbinden"
+    "renewal_action_player": "Player neu verbinden",
+    "theme_system": "System",
+    "theme_light": "Hell",
+    "theme_dark": "Dunkel",
+    "theme_toggle": "Design: {current}. Wechseln zu {next}",
+    "language_choose": "Sprache: {language}. Andere Sprache wählen",
+    "home": "{app}, Startseite",
+    "version": "Version {version}"
 }

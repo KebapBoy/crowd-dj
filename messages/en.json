@@ -44,5 +44,12 @@
     "renewal_hint_host": "Sign in again to renew it for 6 months.",
     "renewal_hint_player": "Connect the player again to renew it for 6 months.",
     "renewal_action_host": "Sign in again",
-    "renewal_action_player": "Connect player again"
+    "renewal_action_player": "Connect player again",
+    "theme_system": "System",
+    "theme_light": "Light",
+    "theme_dark": "Dark",
+    "theme_toggle": "Theme: {current}. Switch to {next}",
+    "language_choose": "Language: {language}. Choose another language",
+    "home": "{app}, start page",
+    "version": "Version {version}"
 }
