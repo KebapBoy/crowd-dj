@@ -7,17 +7,17 @@ const ACCOUNTS = 'https://accounts.spotify.com'
 const API = 'https://api.spotify.com/v1'
 
 /**
- * Everything crowd-dj will need, asked for at once so hosts consent only once: playback state and
- * control for the session engine, private and collaborative playlists for the inbox playlists.
+ * What the account that plays a session has to allow: reading and controlling its playback. A
+ * host's sign-in asks for no scope at all (`GET /me` and the catalog need none); only the account
+ * that plays asks for these: the host's player, or the host's own account when it plays itself.
  */
-export const SCOPES = [
-    'user-read-playback-state',
-    'user-modify-playback-state',
-    'user-read-currently-playing',
-    'playlist-read-private',
-    'playlist-read-collaborative',
-    'playlist-modify-private'
-] as const
+export const PLAYBACK_SCOPES = ['user-read-playback-state', 'user-modify-playback-state'] as const
+
+/** Whether the scopes Spotify granted (space-separated) include every one of `PLAYBACK_SCOPES`. */
+export function allowsPlayback(scope: string): boolean {
+    const granted = new Set(scope.split(' '))
+    return PLAYBACK_SCOPES.every((name) => granted.has(name))
+}
 
 export interface OAuthClient {
     clientId: string
@@ -53,15 +53,21 @@ export class SpotifyError extends Error {
 
 export function authorizeUrl(
     client: OAuthClient,
-    options: { redirectUri: string; state: string; showDialog?: boolean }
+    options: {
+        redirectUri: string
+        state: string
+        scopes?: readonly string[]
+        showDialog?: boolean
+    }
 ): string {
     const params = new URLSearchParams({
         response_type: 'code',
         client_id: client.clientId,
-        scope: SCOPES.join(' '),
         redirect_uri: options.redirectUri,
         state: options.state
     })
+    // Without a scope Spotify grants only what is public: the profile and the catalog
+    if (options.scopes?.length) params.set('scope', options.scopes.join(' '))
     // Shows "Not you?" so another account than the one signed in at spotify.com can be connected
     if (options.showDialog) params.set('show_dialog', 'true')
     return `${ACCOUNTS}/authorize?${params}`

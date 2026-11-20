@@ -7,7 +7,7 @@ import type { Events } from './events'
 import type { Picker } from './picker'
 import type { Sessions } from './sessions'
 import type { PlayerDevice, PlayerState, SpotifyApi } from './spotify/api'
-import { SpotifyError } from './spotify/oauth'
+import { allowsPlayback, SpotifyError } from './spotify/oauth'
 
 /** The next track goes to Spotify's queue this long before the current one ends. */
 export const QUEUE_AHEAD_MS = 15 * 1000
@@ -27,7 +27,15 @@ const START_GRACE_MS = 8000
 const SEEK_TOLERANCE_MS = 4000
 
 /** Why the engine cannot play: shown to the host with what to do about it. */
-export type PlayerProblem = 'no_device' | 'refused' | 'signin' | 'busy' | 'failed'
+export type PlayerProblem = 'no_device' | 'refused' | 'signin' | 'not_allowed' | 'busy' | 'failed'
+
+/** The playing account has not allowed crowd-dj to read and control its playback. */
+class PlaybackNotAllowed extends Error {
+    constructor() {
+        super('The playing account has not allowed playback')
+        this.name = 'PlaybackNotAllowed'
+    }
+}
 
 /** What the playing account was doing when the engine last asked. */
 export interface Live {
@@ -76,6 +84,7 @@ interface Memory {
 }
 
 function problemOf(error: unknown): PlayerProblem {
+    if (error instanceof PlaybackNotAllowed) return 'not_allowed'
     if (!(error instanceof SpotifyError)) return 'failed'
     if (error.invalidGrant) return 'signin'
     if (error.status === 404) return 'no_device'
@@ -178,13 +187,23 @@ export function createEngine({
             .then((delay) => plan(sessionId, delay))
     }
 
-    /** The host's player, else the host. */
+    /**
+     * The host's player, else the host. Throws `PlaybackNotAllowed` when that account has not
+     * allowed playback (a host signs in without it), so Spotify is not even asked.
+     */
     async function playingAccount(hostId: string): Promise<string> {
-        const player = await db.query.spotifyAccount.findFirst({
-            columns: { id: true },
-            where: eq(spotifyAccount.playerOf, hostId)
-        })
-        return player?.id ?? hostId
+        const columns = { id: true, scope: true } as const
+        const account =
+            (await db.query.spotifyAccount.findFirst({
+                columns,
+                where: eq(spotifyAccount.playerOf, hostId)
+            })) ??
+            (await db.query.spotifyAccount.findFirst({
+                columns,
+                where: eq(spotifyAccount.id, hostId)
+            }))
+        if (!account || !allowsPlayback(account.scope)) throw new PlaybackNotAllowed()
+        return account.id
     }
 
     /** The track that plays (started, not ended) and the one queued in Spotify (not started). */
@@ -340,12 +359,12 @@ export function createEngine({
             return null
         }
         const entry = remember(sessionId)
-        const accountId = await playingAccount(session.hostId)
         let state: PlayerState | null = null
         let problem: PlayerProblem | null = null
         let stopped = false
         let changed = false
         try {
+            const accountId = await playingAccount(session.hostId)
             state = await api.playerState(accountId)
             if (!state?.device) {
                 problem = 'no_device'
@@ -553,12 +572,12 @@ export function createEngine({
             return serial(sessionId, async () => {
                 const session = await sessions.get(sessionId)
                 if (!session || session.endedAt) return 'failed'
-                const accountId = await playingAccount(session.hostId)
                 const { current, queued } = await ours(sessionId)
                 const playing = session.playback === 'playing'
                 const entry = remember(sessionId)
                 let result: PlayResult = 'ok'
                 try {
+                    const accountId = await playingAccount(session.hostId)
                     if (playing && current) {
                         if (deviceId) await api.transfer(accountId, deviceId, true)
                         return 'ok'
@@ -618,8 +637,8 @@ export function createEngine({
                 const { current } = await ours(sessionId)
                 if (current?.id !== playId) return 'gone'
                 const entry = remember(sessionId)
-                const accountId = await playingAccount(session.hostId)
                 try {
+                    const accountId = await playingAccount(session.hostId)
                     // As it is now: the last look may be seconds old, and a skip must neither start
                     // music paused in Spotify nor skip a track Spotify has already moved on from
                     const state = await api.playerState(accountId)

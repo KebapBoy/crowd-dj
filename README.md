@@ -75,7 +75,7 @@ The session page shows **Now playing** (cover, title, artists, for whom it plays
 - **Start:** on the start page. You have at most one open session; starting again opens it.
 - **Settings** (any time): how the next track is picked, anonymous, limits per person, skipping (own tracks without a vote; skip voting with the votes and the share of participants it takes).
 - **End:** ends the session for everyone; its link then shows "This session has ended".
-- **My account:** connect, swap or disconnect a player account (Spotify shows its account dialog: pick "Not you?" and sign in with the player). See until when your sign-in and your player's are valid: Spotify requires signing in again every 6 months, and crowd-dj warns two weeks before. **Delete my account** removes your stored tokens and your player's and signs you out everywhere.
+- **My account:** let your own account play your sessions (**Play through my account**), or connect, swap or disconnect a player account (Spotify shows its account dialog: pick "Not you?" and sign in with the player). Signing in only lets crowd-dj read your Spotify profile; only the account that plays allows it to read and control playback, nothing else (no playlists, no library, no listening history). See until when your sign-in and your player's are valid: Spotify requires signing in again every 6 months, and crowd-dj warns two weeks before. **Delete my account** removes your stored tokens and your player's and signs you out everywhere.
 
 ## What it does not do
 
@@ -107,7 +107,7 @@ Ideas that may come next. No promises and no dates, but this is where crowd-dj i
 3. Point your reverse proxy at the container on port 3000. Do not publish port 3000 next to the proxy: a client talking to it directly could fake its address.
     - **Live updates** are server-sent events (`/s/<id>/events`). crowd-dj asks proxies not to buffer them (`X-Accel-Buffering: no`, which nginx and SWAG follow) and sends a ping every 25 seconds, so the usual read timeouts of 60 seconds are fine.
     - **Visitor addresses:** crowd-dj limits new profiles per visitor address, so the proxy has to set or append `X-Forwarded-For` (SWAG, Caddy, Traefik and nginx with `$proxy_add_x_forwarded_for` do), and `XFF_DEPTH` has to match the number of proxies that append to it (the compose file assumes one). Without the header the log says so once, and all visitors share one limit.
-4. Hosts sign in from the start page; on **My account** they can connect a player.
+4. Hosts sign in from the start page; on **My account** they let their own account play or connect a player.
 
 The database is created and migrated when the server starts.
 

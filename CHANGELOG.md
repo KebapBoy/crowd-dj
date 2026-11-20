@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Skipping: **Skip** under "Now playing" skips the track that plays, for the host at any time and for the person it plays for when the session allows skipping own tracks; the next track plays right away. With skip voting on, everyone else in the session can vote to skip (and take the vote back) and sees how many votes it takes; the track is skipped once it has the host's minimum number of votes and the host's share of the participants who are there (who have the session open or voted), but never more votes than there are people to vote. Votes count only for the track they were given to, and only from people still in the session who were there when it started and have added something (a wish or a track in their pool). A track paused in Spotify is not skipped, and a session allows 10 skips a minute. The skip settings of a session, so far only stored, now take effect.
 
+### Changed
+
+- crowd-dj asks Spotify only for what it needs. Signing in as a host only reads your profile; only the account that plays your sessions allows crowd-dj to read and control its playback, and nothing asks for playlists any more. Without a player, allow your own account to play once on **My account** (**Play through my account**); later sign-ins keep that by themselves. Accounts signed in before keep working as they are.
+
 ## [0.1.0] - 2026-11-20
 
 ### Added

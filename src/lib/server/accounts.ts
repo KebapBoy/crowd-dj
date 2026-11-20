@@ -3,6 +3,7 @@ import { decrypt, encrypt, hashToken, randomToken } from './crypto'
 import type { Database } from './db/open'
 import { login, spotifyAccount, type SpotifyAccount } from './db/schema'
 import {
+    allowsPlayback,
     getProfile,
     refreshAccessToken,
     SpotifyError,
@@ -29,6 +30,8 @@ export interface AccountView {
     imageUrl: string | null
     /** Set for a player: the host it belongs to. */
     playerOf: string | null
+    /** Whether the account allowed crowd-dj to read and control its playback. */
+    allowsPlayback: boolean
     tokenExpiresAt: Date
     tokenStatus: TokenStatus
 }
@@ -68,6 +71,7 @@ export function createAccounts({ db, key, client, now = () => new Date() }: Acco
             displayName: account.displayName,
             imageUrl: account.imageUrl,
             playerOf: account.playerOf,
+            allowsPlayback: allowsPlayback(account.scope),
             tokenExpiresAt: tokenExpiresAt(account),
             tokenStatus: tokenStatus(account)
         }

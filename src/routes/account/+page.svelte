@@ -1,9 +1,11 @@
 <script lang="ts">
     import LogInIcon from '@lucide/svelte/icons/log-in'
     import LogOutIcon from '@lucide/svelte/icons/log-out'
+    import PlayIcon from '@lucide/svelte/icons/play'
     import RefreshCwIcon from '@lucide/svelte/icons/refresh-cw'
     import SpeakerIcon from '@lucide/svelte/icons/speaker'
     import Trash2Icon from '@lucide/svelte/icons/trash-2'
+    import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert'
     import UnplugIcon from '@lucide/svelte/icons/unplug'
     import { toast } from 'svelte-sonner'
     import { enhance } from '$app/forms'
@@ -90,12 +92,18 @@
             <Card.Content class="flex flex-col gap-3">
                 {#if data.player}
                     <AccountRow account={data.player} />
-                {:else}
+                {:else if data.host.allowsPlayback}
                     <p class="flex items-center gap-2 text-sm">
                         <SpeakerIcon class="size-4 shrink-0 text-muted-foreground" />
                         {m.account_player_none()}
                     </p>
+                {:else}
+                    <p class="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-400">
+                        <TriangleAlertIcon class="size-4 shrink-0" />
+                        {m.account_player_not_allowed()}
+                    </p>
                 {/if}
+                <p class="text-sm text-muted-foreground">{m.account_playback_hint()}</p>
                 <p class="text-sm text-muted-foreground">{m.account_player_hint()}</p>
             </Card.Content>
             <Card.Footer class="flex-col gap-2 sm:flex-row">
@@ -151,6 +159,16 @@
                         <SpeakerIcon data-icon="inline-start" />
                         {m.account_player_connect()}
                     </Button>
+                    {#if !data.host.allowsPlayback}
+                        <Button
+                            href={resolve('/auth/allow-playback')}
+                            variant="outline"
+                            class={touch}
+                        >
+                            <PlayIcon data-icon="inline-start" />
+                            {m.account_playback_allow()}
+                        </Button>
+                    {/if}
                 {/if}
             </Card.Footer>
         </Card.Root>

@@ -15,6 +15,8 @@ export function problemMessage(problem: PlayerProblem, account: string): string 
             return m.playing_problem_refused({ account })
         case 'signin':
             return m.playing_problem_signin({ account })
+        case 'not_allowed':
+            return m.playing_problem_not_allowed({ account })
         case 'busy':
             return m.playing_problem_busy()
         case 'failed':

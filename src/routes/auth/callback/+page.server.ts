@@ -1,5 +1,6 @@
 import { error, redirect } from '@sveltejs/kit'
 import { accounts, LOGIN_COOKIE, OAUTH_COOKIE, oauthClient } from '#lib/server/app.ts'
+import { startAuthorization } from '#lib/server/auth.ts'
 import { errorSummary } from '#lib/server/errors.ts'
 import { exchangeCode, getProfile, SpotifyError } from '#lib/server/spotify/oauth.ts'
 import { m } from '#lib/paraglide/messages.js'
@@ -16,7 +17,7 @@ export const load: PageServerLoad = async ({ url, cookies, locals }) => {
     const code = url.searchParams.get('code')
     if (!code) error(400, m.auth_cancelled())
     const host = locals.account
-    if (purpose === 'player' && !host) error(401, m.sign_in_required())
+    if ((purpose === 'player' || purpose === 'playback') && !host) error(401, m.sign_in_required())
 
     let tokens, profile
     try {
@@ -40,8 +41,20 @@ export const load: PageServerLoad = async ({ url, cookies, locals }) => {
         redirect(303, '/account')
     }
 
+    if (purpose === 'playback' && host) {
+        // The browser is signed in to another account at spotify.com, e.g. the player
+        if (profile.id !== host.id) error(409, m.auth_playback_not_self())
+        await accounts.saveAuthorization(tokens, profile)
+        redirect(303, '/account')
+    }
+
     // A player plays for its host and does not sign in itself
-    if ((await accounts.get(profile.id))?.playerOf) error(409, m.auth_is_player())
+    const existing = await accounts.get(profile.id)
+    if (existing?.playerOf) error(409, m.auth_is_player())
+    // A host whose own account plays keeps that: the sign-in asks for no scope, so it goes on to
+    // Spotify once more for the playback scopes, which Spotify grants without asking again. Should
+    // that fail, "My account" offers to allow playback
+    const playsItself = existing?.allowsPlayback && !(await accounts.player(profile.id))
     await accounts.saveAuthorization(tokens, profile)
 
     const previous = cookies.get(LOGIN_COOKIE)
@@ -53,5 +66,6 @@ export const load: PageServerLoad = async ({ url, cookies, locals }) => {
         sameSite: 'lax',
         expires: login.expiresAt
     })
+    if (playsItself) startAuthorization(url, cookies, 'playback', { showDialog: false })
     redirect(303, '/account')
 }

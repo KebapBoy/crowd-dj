@@ -44,7 +44,7 @@ beforeEach(async () => {
     await db.insert(spotifyAccount).values({
         id: 'host',
         refreshToken: 'x',
-        scope: '',
+        scope: 'user-read-playback-state user-modify-playback-state',
         authorizedAt: now,
         createdAt: now
     })
@@ -330,6 +330,25 @@ describe('engine', () => {
         expect(engine.live(sessionId)?.problem).toBe('signin')
         await sessions.end(sessionId)
         expect(await engine.tick(sessionId)).toBeNull()
+    })
+
+    it('does not ask Spotify while the playing account has not allowed playback', async () => {
+        await pools.add(alex, [ID(1)])
+        await db.update(spotifyAccount).set({ scope: '' })
+        expect(await engine.play(sessionId)).toBe('not_allowed')
+        expect(await engine.devices(await session())).toBe('not_allowed')
+        expect(api.playerState).not.toHaveBeenCalled()
+        // A player that allows playback plays instead of the host
+        await db.insert(spotifyAccount).values({
+            id: 'player',
+            refreshToken: 'x',
+            scope: 'user-read-playback-state user-modify-playback-state',
+            playerOf: 'host',
+            authorizedAt: now,
+            createdAt: now
+        })
+        expect(await engine.play(sessionId)).toBe('ok')
+        expect(api.play).toHaveBeenLastCalledWith('player', ID(1), undefined)
     })
 
     it('skips to the queued track on resume when it is next in Spotify`s queue', async () => {

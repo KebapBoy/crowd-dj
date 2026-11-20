@@ -1,19 +1,35 @@
 import { describe, expect, it, vi } from 'vitest'
-import { authorizeUrl, exchangeCode, getProfile, SCOPES, SpotifyError } from './oauth'
+import {
+    allowsPlayback,
+    authorizeUrl,
+    exchangeCode,
+    getProfile,
+    PLAYBACK_SCOPES,
+    SpotifyError
+} from './oauth'
 
 const client = { clientId: 'client-id', clientSecret: 'client-secret' }
 
 describe('authorizeUrl', () => {
-    it('asks for all scopes with state and redirect URI', () => {
+    it('asks for no scope by default, with state and redirect URI', () => {
         const url = new URL(
             authorizeUrl(client, { redirectUri: 'http://127.0.0.1:5173/auth/callback', state: 's' })
         )
         expect(url.origin).toBe('https://accounts.spotify.com')
         expect(url.searchParams.get('client_id')).toBe('client-id')
-        expect(url.searchParams.get('scope')).toBe(SCOPES.join(' '))
+        expect(url.searchParams.has('scope')).toBe(false)
         expect(url.searchParams.get('state')).toBe('s')
         expect(url.searchParams.get('redirect_uri')).toBe('http://127.0.0.1:5173/auth/callback')
         expect(url.searchParams.has('show_dialog')).toBe(false)
+    })
+
+    it('asks for the scopes it is given', () => {
+        const url = new URL(
+            authorizeUrl(client, { redirectUri: 'x', state: 's', scopes: PLAYBACK_SCOPES })
+        )
+        expect(url.searchParams.get('scope')).toBe(
+            'user-read-playback-state user-modify-playback-state'
+        )
     })
 
     it('shows the account dialog when connecting another account', () => {
@@ -21,6 +37,18 @@ describe('authorizeUrl', () => {
             authorizeUrl(client, { redirectUri: 'x', state: 's', showDialog: true })
         )
         expect(url.searchParams.get('show_dialog')).toBe('true')
+    })
+})
+
+describe('allowsPlayback', () => {
+    it('needs both playback scopes, in any order and among others', () => {
+        expect(allowsPlayback('')).toBe(false)
+        expect(allowsPlayback('user-read-playback-state')).toBe(false)
+        expect(
+            allowsPlayback(
+                'playlist-read-private user-modify-playback-state user-read-playback-state'
+            )
+        ).toBe(true)
     })
 })
 
