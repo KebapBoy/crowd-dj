@@ -1,6 +1,7 @@
 import { fail } from '@sveltejs/kit'
 import { pools, PROFILE_COOKIE, profiles, setProfileCookie } from '#lib/server/app.ts'
 import { isSpotifyId } from '#lib/server/catalog.ts'
+import { mayCreateProfile } from '#lib/server/guards.ts'
 import { normalizeName } from '#lib/server/profiles.ts'
 import { m } from '#lib/paraglide/messages.js'
 import type { Actions, PageServerLoad } from './$types'
@@ -16,13 +17,14 @@ export const load: PageServerLoad = async ({ locals, cookies, url }) => {
 }
 
 export const actions: Actions = {
-    save: async ({ request, locals, cookies }) => {
+    save: async ({ request, locals, cookies, getClientAddress }) => {
         const name = normalizeName((await request.formData()).get('name'))
         if (!name) return fail(400, { invalid: true })
         if (locals.profile) {
             await profiles.rename(locals.profile.id, name)
             return { saved: true }
         }
+        if (!mayCreateProfile(getClientAddress)) return fail(429, { tooManyProfiles: true })
         const { token } = await profiles.create(name)
         setProfileCookie(cookies, token)
         return { saved: true }

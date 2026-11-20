@@ -13,6 +13,9 @@ services:
             SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID:?set SPOTIFY_CLIENT_ID}
             SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET:?set SPOTIFY_CLIENT_SECRET}
             APP_SECRET: ${APP_SECRET:?set APP_SECRET}
+            # Header with the visitor's address and the number of proxies that append to it
+            ADDRESS_HEADER: ${ADDRESS_HEADER:-X-Forwarded-For}
+            XFF_DEPTH: ${XFF_DEPTH:-1}
         volumes:
             # SQLite database (accounts with encrypted tokens, profiles, pools, sessions)
             - data:/data

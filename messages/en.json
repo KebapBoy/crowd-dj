@@ -73,6 +73,7 @@
     "profile_name": "Name",
     "profile_name_placeholder": "e.g. Alex",
     "profile_name_invalid": "Pick a name with 1 to {max} characters.",
+    "profile_too_many": "Too many new profiles right now. Try again later, or open the personal link of a profile you already have.",
     "profile_create": "Save name",
     "profile_created": "Profile created",
     "profile_renamed": "Name saved",

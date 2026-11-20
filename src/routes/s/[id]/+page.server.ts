@@ -9,7 +9,13 @@ import {
     wishes
 } from '#lib/server/app.ts'
 import { isSpotifyId } from '#lib/server/catalog.ts'
-import { catalogCall, hostSession, memberSession, openSession } from '#lib/server/guards.ts'
+import {
+    catalogCall,
+    hostSession,
+    mayCreateProfile,
+    memberSession,
+    openSession
+} from '#lib/server/guards.ts'
 import { normalizeName } from '#lib/server/profiles.ts'
 import { parseSettings, type SettingsProblem } from '#lib/server/sessions.ts'
 import type { WishProblem } from '#lib/server/wishes.ts'
@@ -85,11 +91,12 @@ function trackIds(form: FormData): string[] | null {
 
 export const actions: Actions = {
     /** A visitor without a profile picks a name and joins. */
-    join: async ({ params, request, locals, cookies }) => {
+    join: async ({ params, request, locals, cookies, getClientAddress }) => {
         const session = await openSession(params.id)
         if (locals.profile) return
         const name = normalizeName((await request.formData()).get('name'))
         if (!name) return fail(400, { invalidName: true })
+        if (!mayCreateProfile(getClientAddress)) return fail(429, { tooManyProfiles: true })
         const { profile, token } = await profiles.create(name)
         setProfileCookie(cookies, token)
         await sessions.join(session.id, profile.id)

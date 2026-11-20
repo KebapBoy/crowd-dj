@@ -73,6 +73,7 @@
     "profile_name": "Name",
     "profile_name_placeholder": "z. B. Alex",
     "profile_name_invalid": "Wähle einen Namen mit 1 bis {max} Zeichen.",
+    "profile_too_many": "Gerade wurden zu viele neue Profile angelegt. Versuch es später noch einmal oder öffne den persönlichen Link eines Profils, das du schon hast.",
     "profile_create": "Namen speichern",
     "profile_created": "Profil angelegt",
     "profile_renamed": "Name gespeichert",

@@ -57,6 +57,8 @@
                     return async ({ result, update }) => {
                         if (result.type === 'success')
                             toast.success(created ? m.profile_created() : m.profile_renamed())
+                        if (result.type === 'failure' && result.data?.tooManyProfiles)
+                            toast.error(m.profile_too_many())
                         await update({ reset: false })
                     }
                 }}

@@ -46,6 +46,17 @@ export const catalogRateLimit = createRateLimit({
     windowMs: 60 * 1000
 })
 
+/**
+ * New participant profiles per hour from one client address (a room behind one router shares it,
+ * so generously). Profiles are free to make and would otherwise fill the database or multiply the
+ * limits per profile. No limit for the whole instance: a few addresses could use it up and keep
+ * everyone from joining.
+ */
+export const profileRateLimit = createRateLimit({
+    limits: { address: 30 },
+    windowMs: 60 * 60 * 1000
+})
+
 /** Cookie with the sign-in token of a host. */
 export const LOGIN_COOKIE = 'crowd_dj_login'
 /** Cookie with the token of the participant profile. */

@@ -23,7 +23,7 @@ A shared music queue for a room full of people. Someone starts a session, everyo
 
 1. Create a Spotify app. Under redirect URIs add `https://dj.example.com/auth/callback` (your `ORIGIN` plus `/auth/callback`). Add every host and every player account to the allowlist (User Management).
 2. Use [deploy/compose.yaml](deploy/compose.yaml), for example as a git stack with that compose path, and set the variables in the environment of the stack. Every variable is explained in [.env.example](.env.example).
-3. Point your reverse proxy at the container on port 3000.
+3. Point your reverse proxy at the container on port 3000. crowd-dj limits new profiles per visitor address, so the proxy has to set or append `X-Forwarded-For` (SWAG, Caddy, Traefik and nginx with `$proxy_add_x_forwarded_for` do), and `XFF_DEPTH` has to match the number of proxies that append to it (the compose file assumes one). Do not publish port 3000 next to the proxy: a client talking to it directly could make up its address. Without the header the log says so once, and all such visitors share one limit.
 4. Hosts sign in from the start page. On **My account** (`/account`) they can connect a player: Spotify shows its account dialog, where they pick "Not you?" and sign in with the player. Its tokens are stored, encrypted; nobody stays signed in as it.
 
 The database is created and migrated when the server starts.
@@ -56,14 +56,16 @@ A participant's name is kept in a cookie of the browser (**My profile**, `/profi
 
 ## Configuration
 
-| Variable                | Purpose                                                                                                                                     |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ORIGIN`                | Public URL without a trailing slash; the Spotify redirect URI is `<ORIGIN>/auth/callback`                                                   |
-| `DATABASE_URL`          | SQLite database file as a libsql URL (the image sets `file:/data/crowd-dj.db`)                                                              |
-| `SPOTIFY_CLIENT_ID`     | Client ID of the Spotify app                                                                                                                |
-| `SPOTIFY_CLIENT_SECRET` | Client secret of the Spotify app (secret)                                                                                                   |
-| `APP_SECRET`            | Key for encrypting stored tokens (secret, at least 32 characters; `openssl rand -base64 32`). Changing it makes every account sign in again |
-| `TZ`                    | Time zone                                                                                                                                   |
+| Variable                | Purpose                                                                                                                                      |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ORIGIN`                | Public URL without a trailing slash; the Spotify redirect URI is `<ORIGIN>/auth/callback`                                                    |
+| `DATABASE_URL`          | SQLite database file as a libsql URL (the image sets `file:/data/crowd-dj.db`)                                                               |
+| `SPOTIFY_CLIENT_ID`     | Client ID of the Spotify app                                                                                                                 |
+| `SPOTIFY_CLIENT_SECRET` | Client secret of the Spotify app (secret)                                                                                                    |
+| `APP_SECRET`            | Key for encrypting stored tokens (secret, at least 32 characters; `openssl rand -base64 32`). Changing it makes every account sign in again  |
+| `ADDRESS_HEADER`        | Request header with the visitor's address behind a reverse proxy, used to limit new profiles per address (compose default `X-Forwarded-For`) |
+| `XFF_DEPTH`             | How many proxies append to `X-Forwarded-For` (compose default `1`)                                                                           |
+| `TZ`                    | Time zone                                                                                                                                    |
 
 ## Development
 

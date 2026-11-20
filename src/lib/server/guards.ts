@@ -1,6 +1,7 @@
 import { error, isHttpError } from '@sveltejs/kit'
-import { catalogRateLimit, sessions } from './app'
+import { catalogRateLimit, profileRateLimit, sessions } from './app'
 import { errorSummary } from './errors'
+import { addressKey } from './rate-limit'
 import type { Charge } from './catalog'
 import { SpotifyError } from './spotify/oauth'
 import { m } from '#lib/paraglide/messages.js'
@@ -25,6 +26,29 @@ export async function memberSession(id: string, locals: App.Locals) {
     const session = await openSession(id)
     if (!locals.profile) error(403, m.error_request())
     return { session, profile: locals.profile }
+}
+
+let addressMissingLogged = false
+
+/**
+ * Whether the visitor may make another profile (`profileRateLimit`, IPv6 by its /64). Behind a
+ * reverse proxy the address comes from the header that `ADDRESS_HEADER` names; when that header is
+ * missing, adapter-node throws, and such requests share one address instead of failing.
+ */
+export function mayCreateProfile(getClientAddress: () => string): boolean {
+    let address: string
+    try {
+        address = addressKey(getClientAddress())
+    } catch (caught) {
+        if (!addressMissingLogged) {
+            addressMissingLogged = true
+            console.warn(
+                `No client address (${errorSummary(caught)}); check ADDRESS_HEADER and the reverse proxy`
+            )
+        }
+        address = 'unknown'
+    }
+    return profileRateLimit([`address:${address}`])
 }
 
 /**

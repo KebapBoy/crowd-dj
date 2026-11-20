@@ -113,6 +113,8 @@
                     use:enhance={() =>
                         async ({ result, update }) => {
                             if (result.type === 'success') toast.success(m.session_joined())
+                            if (result.type === 'failure' && result.data?.tooManyProfiles)
+                                toast.error(m.profile_too_many())
                             await update({ reset: false })
                         }}
                 >
