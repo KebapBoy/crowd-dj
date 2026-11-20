@@ -2,10 +2,10 @@ import { and, asc, count, eq, isNull, sql } from 'drizzle-orm'
 import { trackView, type TrackView } from './catalog'
 import { randomId } from './crypto'
 import type { Database } from './db/open'
-import { track, wish, type Session } from './db/schema'
+import { play, track, wish, type Session } from './db/schema'
 
 /** Why a wish was not taken. */
-export type WishProblem = 'mode' | 'openLimit' | 'sessionLimit' | 'taken'
+export type WishProblem = 'mode' | 'openLimit' | 'sessionLimit' | 'taken' | 'played'
 
 export interface WishView {
     id: string
@@ -39,7 +39,8 @@ export function createWishes({ db, now = () => new Date() }: { db: Database; now
     return {
         /**
          * Wishes a cached track in a session, within the session's limits: open wishes at a time and
-         * wishes in the session per person. Each track can be wished once per session.
+         * wishes in the session per person. Each track can be wished once per session, and not
+         * after it played in the session.
          */
         async add(
             session: Session,
@@ -53,19 +54,25 @@ export function createWishes({ db, now = () => new Date() }: { db: Database; now
             const result = await db.run(sql`
                 insert into wish (id, session_id, profile_id, track_id, created_at)
                 select ${randomId()}, ${session.id}, ${profileId}, ${trackId}, ${now().getTime()}
-                where (${session.maxOpenWishes} is null
+                where not exists (select 1 from play
+                        where session_id = ${session.id} and track_id = ${trackId})
+                    and (${session.maxOpenWishes} is null
                         or (select count(*) from wish where ${mine} and played_at is null)
                             < ${session.maxOpenWishes})
                     and (${session.maxSessionWishes} is null
                         or (select count(*) from wish where ${mine}) < ${session.maxSessionWishes})
                 on conflict do nothing`)
             if (result.rowsAffected > 0) return null
-            // Not inserted: a limit was reached, or the track has been wished already
+            // Not inserted: a limit was reached, or the track has been wished or played already
             const { open, total } = await counts(session.id, profileId)
             if (session.maxOpenWishes !== null && open >= session.maxOpenWishes) return 'openLimit'
             if (session.maxSessionWishes !== null && total >= session.maxSessionWishes)
                 return 'sessionLimit'
-            return 'taken'
+            const played = await db.query.play.findFirst({
+                columns: { id: true },
+                where: and(eq(play.sessionId, session.id), eq(play.trackId, trackId))
+            })
+            return played ? 'played' : 'taken'
         },
 
         /**

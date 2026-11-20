@@ -1,6 +1,13 @@
 import type { Handle, HandleServerError, ServerInit } from '@sveltejs/kit/hooks'
 import { sequence } from '@sveltejs/kit/hooks'
-import { accounts, LOGIN_COOKIE, PROFILE_COOKIE, profiles, sessions } from '#lib/server/app.ts'
+import {
+    accounts,
+    engine,
+    LOGIN_COOKIE,
+    PROFILE_COOKIE,
+    profiles,
+    sessions
+} from '#lib/server/app.ts'
 import { db } from '#lib/server/db/index.ts'
 import { migrateDatabase } from '#lib/server/db/migrate.ts'
 import { errorSummary } from '#lib/server/errors.ts'
@@ -11,9 +18,13 @@ import { paraglideMiddleware } from '#lib/paraglide/server.js'
 /** How often idle sessions are ended. */
 const IDLE_CHECK_MS = 60 * 1000
 
-/** Brings the database up to date before the first request and starts ending idle sessions. */
+/**
+ * Brings the database up to date before the first request, starts ending idle sessions and picks
+ * up the sessions that were playing.
+ */
 export const init: ServerInit = async () => {
     await migrateDatabase(db)
+    await engine.start()
     setInterval(() => {
         sessions.endIdle().catch((error) => console.error(errorSummary(error)))
     }, IDLE_CHECK_MS).unref()

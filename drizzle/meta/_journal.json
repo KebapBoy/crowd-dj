@@ -22,6 +22,20 @@
       "when": 1795153322966,
       "tag": "0002_music",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1795157302652,
+      "tag": "0003_engine",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1795159033982,
+      "tag": "0004_leave",
+      "breakpoints": true
     }
   ]
 }

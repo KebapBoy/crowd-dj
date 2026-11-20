@@ -1,6 +1,7 @@
 /**
- * The catalog part of Spotify's Web API: search, tracks, albums and an artist's albums. Pure HTTP
- * with the token of a connected account; caching is the job of `catalog.ts`.
+ * The parts of Spotify's Web API crowd-dj uses: the catalog (search, tracks, albums and an artist's
+ * albums) and the player (state, devices, play, queue, skip). Pure HTTP with the token of a
+ * connected account; caching is the job of `catalog.ts`, deciding what plays that of `engine.ts`.
  */
 import { SpotifyError } from './oauth'
 
@@ -41,6 +42,27 @@ export interface SpotifyArtist {
     imageUrl: string | null
 }
 
+/** What a playing account is doing, from `GET /me/player`. */
+export interface PlayerState {
+    /** The device it plays on; null when Spotify names none. */
+    device: { id: string | null; name: string } | null
+    isPlaying: boolean
+    /** The track that is loaded; null for nothing, an episode, an ad or a local file. */
+    trackId: string | null
+    progressMs: number
+    durationMs: number
+}
+
+/** A device the account can play on (`GET /me/player/devices`). */
+export interface PlayerDevice {
+    /** Null for devices that cannot be controlled through the API. */
+    id: string | null
+    name: string
+    type: string
+    isActive: boolean
+    isRestricted: boolean
+}
+
 /** Where the API gets the access tokens of connected accounts (`accounts.ts`). */
 export interface TokenSource {
     accessToken(accountId: string): Promise<string>
@@ -71,6 +93,19 @@ interface TrackJson {
     duration_ms: number
     is_local?: boolean
     type?: string
+}
+interface PlayerJson {
+    device?: { id: string | null; name: string } | null
+    is_playing: boolean
+    progress_ms: number | null
+    item?: TrackJson | null
+}
+interface DeviceJson {
+    id: string | null
+    name: string
+    type: string
+    is_active: boolean
+    is_restricted: boolean
 }
 interface Page<T> {
     items: (T | null)[]
@@ -127,32 +162,73 @@ export function createSpotifyApi({
      */
     let pausedUntil = 0
 
-    /** GET with the account's token; null for 404. A 401 gets one retry with a fresh token. */
-    async function get<T>(accountId: string, path: string, retry = true): Promise<T | null> {
+    /** A request with the account's token. A 401 gets one retry with a fresh token. */
+    async function request(
+        method: 'GET' | 'PUT' | 'POST',
+        accountId: string,
+        path: string,
+        body?: unknown,
+        retry = true
+    ): Promise<Response> {
         if (Date.now() < pausedUntil)
             throw new SpotifyError('Spotify asked to wait (rate limit)', 429)
         const response = await fetchFn(`${API}${path}`, {
-            headers: { authorization: `Bearer ${await tokens.accessToken(accountId)}` },
+            method,
+            headers: {
+                authorization: `Bearer ${await tokens.accessToken(accountId)}`,
+                ...(body !== undefined && { 'content-type': 'application/json' })
+            },
+            body: body === undefined ? undefined : JSON.stringify(body),
             signal: AbortSignal.timeout(TIMEOUT_MS)
         })
         if (response.status === 401 && retry) {
             await tokens.invalidateAccessToken(accountId)
-            return get(accountId, path, false)
+            return request(method, accountId, path, body, false)
         }
         if (response.status === 429) {
             const seconds = Number(response.headers.get('retry-after')) || RETRY_AFTER_DEFAULT_S
             pausedUntil = Date.now() + Math.min(seconds, 3600) * 1000
         }
+        return response
+    }
+
+    // The path holds only IDs and the search query, never a token
+    const failed = (method: string, path: string, response: Response) =>
+        new SpotifyError(
+            `Spotify ${method} ${path.split('?')[0]} failed: ${response.status}`,
+            response.status
+        )
+
+    /** GET with the account's token; null for 404. */
+    async function get<T>(accountId: string, path: string): Promise<T | null> {
+        const response = await request('GET', accountId, path)
         // A malformed ID gets 400 "invalid id": as unknown as one that does not exist
         if (response.status === 404 || response.status === 400) return null
-        // The path holds only IDs and the search query, never a token
-        if (!response.ok)
-            throw new SpotifyError(
-                `Spotify GET ${path.split('?')[0]} failed: ${response.status}`,
-                response.status
-            )
+        if (!response.ok) throw failed('GET', path, response)
         return (await response.json()) as T
     }
+
+    /**
+     * A player command. Spotify answers 404 when the account has no active device (or the device
+     * asked for is gone), 403 when it may not be controlled (no Premium, or a restricted device).
+     */
+    async function command(
+        method: 'PUT' | 'POST',
+        accountId: string,
+        path: string,
+        body?: unknown
+    ) {
+        const response = await request(method, accountId, path, body)
+        await response.body?.cancel()
+        if (!response.ok) throw failed(method, path, response)
+    }
+
+    const trackUri = (trackId: string) => {
+        if (!SPOTIFY_ID.test(trackId)) throw new Error('Not a Spotify track ID')
+        return `spotify:track:${trackId}`
+    }
+    const deviceParam = (deviceId: string | undefined) =>
+        deviceId ? `device_id=${encodeURIComponent(deviceId)}` : ''
 
     return {
         /** Up to 10 tracks, albums and artists for a query, in one request. */
@@ -237,6 +313,66 @@ export function createSpotifyApi({
             if (!json) return null
             const albums = json.items.filter(present).map(toAlbum)
             return { albums, next: json.next ? offset + ARTIST_ALBUMS_LIMIT : null }
+        },
+
+        /** What the account plays; null when it has no active device. */
+        async playerState(accountId: string): Promise<PlayerState | null> {
+            const path = '/me/player'
+            const response = await request('GET', accountId, path)
+            if (response.status === 204) return null
+            if (!response.ok) throw failed('GET', path, response)
+            const json = (await response.json()) as PlayerJson | null
+            if (!json) return null
+            const item = json.item && toTrack(json.item)
+            return {
+                device: json.device ? { id: json.device.id, name: json.device.name } : null,
+                isPlaying: json.is_playing,
+                trackId: item?.id ?? null,
+                progressMs: json.progress_ms ?? 0,
+                durationMs: item?.durationMs ?? 0
+            }
+        },
+
+        /** The devices the account can play on. */
+        async devices(accountId: string): Promise<PlayerDevice[]> {
+            const json = await get<{ devices: DeviceJson[] }>(accountId, '/me/player/devices')
+            return (json?.devices ?? []).map((device) => ({
+                id: device.id,
+                name: device.name,
+                type: device.type,
+                isActive: device.is_active,
+                isRestricted: device.is_restricted
+            }))
+        },
+
+        /** The tracks in Spotify's queue, after the one that plays (episodes left out). */
+        async userQueue(accountId: string): Promise<string[]> {
+            const json = await get<{ queue?: (TrackJson | null)[] }>(accountId, '/me/player/queue')
+            return (json?.queue ?? []).flatMap((item) => toTrack(item)?.id ?? [])
+        },
+
+        /** Plays a track right away, on the given device or the active one. */
+        async play(accountId: string, trackId: string, deviceId?: string) {
+            const query = deviceParam(deviceId)
+            await command('PUT', accountId, `/me/player/play${query && '?' + query}`, {
+                uris: [trackUri(trackId)]
+            })
+        },
+
+        /** Moves playback to another device; `play` starts it there, else it keeps its state. */
+        async transfer(accountId: string, deviceId: string, play: boolean) {
+            await command('PUT', accountId, '/me/player', { device_ids: [deviceId], play })
+        },
+
+        /** Appends a track to Spotify's queue, after what is playing and queued already. */
+        async queue(accountId: string, trackId: string) {
+            const params = new URLSearchParams({ uri: trackUri(trackId) })
+            await command('POST', accountId, `/me/player/queue?${params}`)
+        },
+
+        /** Skips to the next track in Spotify's queue. */
+        async next(accountId: string) {
+            await command('POST', accountId, '/me/player/next')
         }
     }
 }

@@ -1,5 +1,5 @@
 import { error, isHttpError } from '@sveltejs/kit'
-import { catalogRateLimit, profileRateLimit, sessions } from './app'
+import { actionRateLimit, catalogRateLimit, profileRateLimit, sessions } from './app'
 import { errorSummary } from './errors'
 import { addressKey } from './rate-limit'
 import type { Charge } from './catalog'
@@ -21,11 +21,21 @@ export async function hostSession(id: string, locals: App.Locals) {
     return session
 }
 
-/** The open session and the visitor's profile; visiting the session page joins it. */
+/** The open session and the visitor's profile, which is in it (and has not left). */
 export async function memberSession(id: string, locals: App.Locals) {
     const session = await openSession(id)
     if (!locals.profile) error(403, m.error_request())
+    if ((await sessions.membership(session.id, locals.profile.id)) !== 'member')
+        error(403, m.error_request())
     return { session, profile: locals.profile }
+}
+
+/**
+ * A change by a participant (wish, pool, leave): limited per minute, since each one reloads every
+ * open page of the session and may make the engine look at the player.
+ */
+export function mayChange(profileId: string): boolean {
+    return actionRateLimit([`profile:${profileId}`])
 }
 
 let addressMissingLogged = false

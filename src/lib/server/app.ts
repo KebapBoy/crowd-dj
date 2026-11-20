@@ -3,6 +3,10 @@ import { createAccounts } from './accounts'
 import { createCatalog } from './catalog'
 import { tokenKey } from './crypto'
 import { db } from './db'
+import { createEngine } from './engine'
+import { createEvents } from './events'
+import { createPicker } from './picker'
+import { createPlayingView } from './playing'
 import { createPools } from './pools'
 import { createProfiles } from './profiles'
 import { createRateLimit } from './rate-limit'
@@ -27,14 +31,41 @@ export const profiles = createProfiles({ db })
 /** Sessions of the hosts. */
 export const sessions = createSessions({ db })
 
+/** Spotify's Web API with the tokens of the connected accounts; one, so a 429 pauses every call. */
+const spotify = createSpotifyApi({ tokens: accounts })
+
 /** Spotify's catalog through the hosts' tokens, with the track cache. */
-export const catalog = createCatalog({ db, api: createSpotifyApi({ tokens: accounts }) })
+export const catalog = createCatalog({ db, api: spotify })
 
 /** Participants' pools, kept across sessions. */
 export const pools = createPools({ db })
 
 /** Wishes in sessions. */
 export const wishes = createWishes({ db })
+
+/** Tells the open pages of a session that something changed. */
+export const events = createEvents()
+
+const picker = createPicker({ db })
+
+/** Picks the next track of a session and plays it through the playing account. */
+export const engine = createEngine({ db, api: spotify, sessions, picker, events })
+
+/** "Now playing" and "up next" of a session, as its pages show them. */
+export const playing = createPlayingView({
+    db,
+    picker,
+    live: (sessionId) => engine.live(sessionId)
+})
+
+/**
+ * Something in the session changed that its pages show and that may change what plays next (a
+ * wish, a pool, someone joined or left, the settings).
+ */
+export function sessionChanged(sessionId: string) {
+    events.publish(sessionId)
+    engine.poke(sessionId)
+}
 
 /**
  * Calls to Spotify per minute that participants may cause (searches, albums, links not cached yet):
@@ -45,6 +76,9 @@ export const catalogRateLimit = createRateLimit({
     limits: { profile: 100, session: 150, all: 300 },
     windowMs: 60 * 1000
 })
+
+/** Changes per minute a participant may make in sessions (wishes, pools, leaving). */
+export const actionRateLimit = createRateLimit({ limits: { profile: 60 }, windowMs: 60 * 1000 })
 
 /**
  * New participant profiles per hour from one client address (a room behind one router shares it,

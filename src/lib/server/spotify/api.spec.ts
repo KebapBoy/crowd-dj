@@ -141,4 +141,51 @@ describe('spotify api', () => {
         expect(await api.artistAlbums('host', ID(8), 10)).toMatchObject({ next: 20 })
         expect(new URL(fetchMock.mock.calls[0][0]).searchParams.get('offset')).toBe('10')
     })
+
+    it('reads the player and knows when nothing is active', async () => {
+        fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }))
+        expect(await api.playerState('host')).toBeNull()
+        fetchMock.mockResolvedValueOnce(
+            json({
+                device: { id: 'd1', name: 'Speaker' },
+                is_playing: true,
+                progress_ms: 1000,
+                item: trackJson(1)
+            })
+        )
+        expect(await api.playerState('host')).toEqual({
+            device: { id: 'd1', name: 'Speaker' },
+            isPlaying: true,
+            trackId: ID(1),
+            progressMs: 1000,
+            durationMs: 200_000
+        })
+        // An episode plays: no track
+        fetchMock.mockResolvedValueOnce(
+            json({ device: null, is_playing: true, progress_ms: 5, item: null })
+        )
+        expect(await api.playerState('host')).toMatchObject({ trackId: null, device: null })
+    })
+
+    it('plays, queues and moves playback, and reports a missing device', async () => {
+        fetchMock.mockImplementation(async () => new Response(null, { status: 204 }))
+        await api.play('host', ID(1), 'device 1')
+        let [url, init] = fetchMock.mock.calls[0]
+        expect(init.method).toBe('PUT')
+        expect(new URL(url).searchParams.get('device_id')).toBe('device 1')
+        expect(JSON.parse(init.body)).toEqual({ uris: [`spotify:track:${ID(1)}`] })
+        await api.queue('host', ID(2))
+        ;[url, init] = fetchMock.mock.calls[1]
+        expect(init.method).toBe('POST')
+        expect(new URL(url).searchParams.get('uri')).toBe(`spotify:track:${ID(2)}`)
+        await api.transfer('host', 'd2', false)
+        expect(JSON.parse(fetchMock.mock.calls[2][1].body)).toEqual({
+            device_ids: ['d2'],
+            play: false
+        })
+        await expect(api.queue('host', '../me')).rejects.toThrow()
+
+        fetchMock.mockImplementation(async () => json({ error: { status: 404 } }, 404))
+        await expect(api.next('host')).rejects.toMatchObject({ status: 404 })
+    })
 })

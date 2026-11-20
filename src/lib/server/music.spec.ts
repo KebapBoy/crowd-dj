@@ -21,7 +21,7 @@ const spotifyTrack = (n: number): SpotifyTrack => ({
 
 let db: Database
 let now: Date
-let api: { [K in keyof SpotifyApi]: ReturnType<typeof vi.fn> }
+let api: { [K in 'search' | 'track' | 'album' | 'artistAlbums']: ReturnType<typeof vi.fn> }
 let catalog: ReturnType<typeof createCatalog>
 
 beforeEach(async () => {

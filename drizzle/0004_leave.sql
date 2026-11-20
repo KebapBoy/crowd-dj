@@ -1,0 +1,1 @@
+ALTER TABLE `session_member` ADD `left_at` integer;

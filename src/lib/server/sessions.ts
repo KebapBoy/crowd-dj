@@ -1,7 +1,14 @@
 import { and, asc, eq, isNull, lt } from 'drizzle-orm'
 import { randomId } from './crypto'
 import type { Database } from './db/open'
-import { profile, session, sessionMember, type Session, type SessionMode } from './db/schema'
+import {
+    profile,
+    session,
+    sessionMember,
+    type Playback,
+    type Session,
+    type SessionMode
+} from './db/schema'
 
 /** A session without a sign of life for this long ends by itself. */
 export const IDLE_LIMIT_MS = 30 * 60 * 1000
@@ -86,6 +93,14 @@ export function createSessions({ db, now = () => new Date() }: { db: Database; n
 
     const open = (sessionId: string) => and(eq(session.id, sessionId), isNull(session.endedAt))
 
+    /** The profile's membership while it is in the session (has not left). */
+    const member = (sessionId: string, profileId: string) =>
+        and(
+            eq(sessionMember.sessionId, sessionId),
+            eq(sessionMember.profileId, profileId),
+            isNull(sessionMember.leftAt)
+        )
+
     /** Open sessions without a sign of life for too long; a visit meanwhile keeps them open. */
     const idle = () => and(isNull(session.endedAt), lt(session.activeAt, idleSince()))
 
@@ -160,20 +175,73 @@ export function createSessions({ db, now = () => new Date() }: { db: Database; n
             await end(sessionId, 'host')
         },
 
-        async join(sessionId: string, profileId: string) {
-            await db
+        /** What the engine does in the session (see `engine.ts`). */
+        async setPlayback(sessionId: string, playback: Playback) {
+            await db.update(session).set({ playback }).where(open(sessionId))
+        },
+
+        /** Open sessions whose engine plays. */
+        async playing(): Promise<Session[]> {
+            return db
+                .select()
+                .from(session)
+                .where(and(isNull(session.endedAt), eq(session.playback, 'playing')))
+        },
+
+        /**
+         * Joins the profile to the session on its first visit; true when it was not in it yet. One
+         * that left stays out (see `rejoin`).
+         */
+        async join(sessionId: string, profileId: string): Promise<boolean> {
+            const result = await db
                 .insert(sessionMember)
                 .values({ sessionId, profileId, joinedAt: now() })
                 .onConflictDoNothing()
+            return result.rowsAffected > 0
         },
 
-        /** Everyone who joined, in the order they came. */
+        /** Joins on purpose, also after leaving; the profile's turns start again. */
+        async rejoin(sessionId: string, profileId: string) {
+            const at = now()
+            await db
+                .insert(sessionMember)
+                .values({ sessionId, profileId, joinedAt: at })
+                .onConflictDoUpdate({
+                    target: [sessionMember.sessionId, sessionMember.profileId],
+                    set: { joinedAt: at, leftAt: null }
+                })
+        },
+
+        /**
+         * Leaves the session: the profile's turns end and its open wishes no longer play (they come
+         * back when it joins again). Visits no longer join it; only `rejoin` does.
+         */
+        async leave(sessionId: string, profileId: string) {
+            await db
+                .update(sessionMember)
+                .set({ leftAt: now() })
+                .where(member(sessionId, profileId))
+        },
+
+        /** Whether the profile is in the session, left it, or never joined. */
+        async membership(sessionId: string, profileId: string): Promise<'member' | 'left' | null> {
+            const row = await db.query.sessionMember.findFirst({
+                columns: { leftAt: true },
+                where: and(
+                    eq(sessionMember.sessionId, sessionId),
+                    eq(sessionMember.profileId, profileId)
+                )
+            })
+            return row ? (row.leftAt ? 'left' : 'member') : null
+        },
+
+        /** Everyone in the session, in the order they came. */
         async members(sessionId: string): Promise<{ id: string; name: string }[]> {
             return db
                 .select({ id: profile.id, name: profile.name })
                 .from(sessionMember)
                 .innerJoin(profile, eq(profile.id, sessionMember.profileId))
-                .where(eq(sessionMember.sessionId, sessionId))
+                .where(and(eq(sessionMember.sessionId, sessionId), isNull(sessionMember.leftAt)))
                 .orderBy(asc(sessionMember.joinedAt), asc(profile.name))
         }
     }

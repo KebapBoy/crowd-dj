@@ -1,13 +1,14 @@
 <script lang="ts">
+    import LogOutIcon from '@lucide/svelte/icons/log-out'
     import QrCodeIcon from '@lucide/svelte/icons/qr-code'
     import SpeakerIcon from '@lucide/svelte/icons/speaker'
     import SquareIcon from '@lucide/svelte/icons/square'
-    import { onMount } from 'svelte'
     import { toast } from 'svelte-sonner'
     import { enhance } from '$app/forms'
     import { invalidateAll } from '$app/navigation'
     import CatalogSearch from '#lib/components/catalog-search.svelte'
     import NameForm from '#lib/components/name-form.svelte'
+    import NowPlaying from '#lib/components/now-playing.svelte'
     import PoolList from '#lib/components/pool-list.svelte'
     import SessionSettings from '#lib/components/session-settings.svelte'
     import ShareLink from '#lib/components/share-link.svelte'
@@ -26,9 +27,12 @@
 
     let { data, form }: PageProps = $props()
 
-    const HEARTBEAT_MS = 5 * 60 * 1000
+    /** Changes close together reload the data once; spread, so not every page asks at once. */
+    const RELOAD_DELAY_MS = 300
+    const RELOAD_SPREAD_MS = 700
 
     let endOpen = $state(false)
+    let leaveOpen = $state(false)
     let tab = $state('search')
     let busy = $state(false)
 
@@ -41,13 +45,31 @@
     /** First character, whole even when it is an emoji. */
     const initial = (name: string) => (Array.from(name)[0] ?? '').toUpperCase()
 
-    // Until live updates exist, an open page reloads its data now and then: that keeps the session
-    // from ending as idle while people look at it, and shows who joined meanwhile
-    onMount(() => {
-        const timer = setInterval(() => {
+    const live = $derived(data.member || data.isHost)
+
+    // Live updates: the server says when something changed, and the page reloads its data. An open
+    // page also keeps the session from ending as idle. Starts once the visitor has joined.
+    $effect(() => {
+        if (!live) return
+        let timer: ReturnType<typeof setTimeout> | undefined
+        const source = new EventSource(`/s/${data.session.id}/events`)
+        source.addEventListener('change', () => {
+            clearTimeout(timer)
+            timer = setTimeout(
+                () => invalidateAll(),
+                RELOAD_DELAY_MS + Math.random() * RELOAD_SPREAD_MS
+            )
+        })
+        // After the phone slept, the connection may have missed changes
+        const visible = () => {
             if (document.visibilityState === 'visible') invalidateAll()
-        }, HEARTBEAT_MS)
-        return () => clearInterval(timer)
+        }
+        document.addEventListener('visibilitychange', visible)
+        return () => {
+            clearTimeout(timer)
+            source.close()
+            document.removeEventListener('visibilitychange', visible)
+        }
     })
 </script>
 
@@ -100,6 +122,15 @@
         </Dialog.Root>
     </div>
 
+    {#if live}
+        <NowPlaying
+            playing={data.playing}
+            sessionId={data.session.id}
+            isHost={data.isHost}
+            account={data.session.playingName}
+        />
+    {/if}
+
     {#if !data.profile}
         <Card.Root>
             <Card.Header>
@@ -125,6 +156,30 @@
                     />
                 </form>
             </Card.Content>
+        </Card.Root>
+    {:else if !data.member}
+        <Card.Root>
+            <Card.Header>
+                <Card.Title><h2>{m.session_left_heading()}</h2></Card.Title>
+                <Card.Description>{m.session_left_intro()}</Card.Description>
+            </Card.Header>
+            <Card.Footer>
+                <form
+                    method="POST"
+                    action="?/join"
+                    class="w-full sm:w-auto"
+                    use:enhance={() =>
+                        async ({ result, update }) => {
+                            if (result.type === 'success') toast.success(m.session_rejoined())
+                            else toast.error(m.action_failed())
+                            await update()
+                        }}
+                >
+                    <Button type="submit" class="h-11 w-full sm:h-8 sm:w-auto">
+                        {m.session_rejoin()}
+                    </Button>
+                </form>
+            </Card.Footer>
         </Card.Root>
     {:else}
         <Card.Root>
@@ -219,6 +274,53 @@
                     </ul>
                 {/if}
             </Card.Content>
+            <Card.Footer>
+                <AlertDialog.Root bind:open={leaveOpen}>
+                    <AlertDialog.Trigger>
+                        {#snippet child({ props })}
+                            <Button
+                                {...props}
+                                variant="outline"
+                                class="h-11 w-full sm:h-8 sm:w-auto"
+                            >
+                                <LogOutIcon data-icon="inline-start" />
+                                {m.session_leave()}
+                            </Button>
+                        {/snippet}
+                    </AlertDialog.Trigger>
+                    <AlertDialog.Content>
+                        <AlertDialog.Header>
+                            <AlertDialog.Title>{m.session_leave_title()}</AlertDialog.Title>
+                            <AlertDialog.Description
+                                >{m.session_leave_hint()}</AlertDialog.Description
+                            >
+                        </AlertDialog.Header>
+                        <form
+                            method="POST"
+                            action="?/leave"
+                            use:enhance={() => {
+                                busy = true
+                                return async ({ result, update }) => {
+                                    busy = false
+                                    leaveOpen = false
+                                    if (result.type === 'redirect') toast.success(m.session_left())
+                                    else toast.error(m.action_failed())
+                                    await update()
+                                }
+                            }}
+                        >
+                            <AlertDialog.Footer>
+                                <AlertDialog.Cancel type="button" class="h-11 sm:h-8">
+                                    {m.cancel()}
+                                </AlertDialog.Cancel>
+                                <Button type="submit" class="h-11 sm:h-8" disabled={busy}>
+                                    {m.session_leave()}
+                                </Button>
+                            </AlertDialog.Footer>
+                        </form>
+                    </AlertDialog.Content>
+                </AlertDialog.Root>
+            </Card.Footer>
         </Card.Root>
     {/if}
 

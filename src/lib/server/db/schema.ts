@@ -91,8 +91,18 @@ export const session = sqliteTable(
         skipVotes: integer('skip_votes').notNull().default(2),
         /** ... and at least this share of the active participants, in percent. */
         skipPercent: integer('skip_percent').notNull().default(50),
+        /**
+         * What the engine does: `stopped` until the host presses play, `playing` while it hands
+         * Spotify the next track, `paused` after something else was played on the account.
+         */
+        playback: text('playback', { enum: ['stopped', 'playing', 'paused'] })
+            .notNull()
+            .default('stopped'),
         createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
-        /** Last sign of life (a visit; later also playback); the session ends after a while without. */
+        /**
+         * Last sign of life (a visit, an open session page, a track of the session playing); the
+         * session ends after a while without.
+         */
         activeAt: integer('active_at', { mode: 'timestamp_ms' }).notNull(),
         endedAt: integer('ended_at', { mode: 'timestamp_ms' }),
         endReason: text('end_reason', { enum: ['host', 'idle'] })
@@ -104,7 +114,7 @@ export const session = sqliteTable(
     ]
 )
 
-/** A profile that joined a session. */
+/** A profile that joined a session (and maybe left it). */
 export const sessionMember = sqliteTable(
     'session_member',
     {
@@ -114,7 +124,12 @@ export const sessionMember = sqliteTable(
         profileId: text('profile_id')
             .notNull()
             .references(() => profile.id, { onDelete: 'cascade' }),
-        joinedAt: integer('joined_at', { mode: 'timestamp_ms' }).notNull()
+        joinedAt: integer('joined_at', { mode: 'timestamp_ms' }).notNull(),
+        /**
+         * Set when the profile left: no more turns, and a visit does not join it again; only joining
+         * on purpose does.
+         */
+        leftAt: integer('left_at', { mode: 'timestamp_ms' })
     },
     (table) => [primaryKey({ columns: [table.sessionId, table.profileId] })]
 )
@@ -179,7 +194,38 @@ export const wish = sqliteTable(
     ]
 )
 
+/**
+ * A track the engine handed to Spotify in a session: queued shortly before the current one ends
+ * (or played right away), started when Spotify plays it, ended when something else plays. No track
+ * plays twice in a session.
+ */
+export const play = sqliteTable(
+    'play',
+    {
+        id: text('id').primaryKey(),
+        sessionId: text('session_id')
+            .notNull()
+            .references(() => session.id, { onDelete: 'cascade' }),
+        trackId: text('track_id')
+            .notNull()
+            .references(() => track.id),
+        /** Whose turn it was; null when the profile has been deleted since. */
+        profileId: text('profile_id').references(() => profile.id, { onDelete: 'set null' }),
+        /** The wish it fulfils; null for a track from a pool. */
+        wishId: text('wish_id').references(() => wish.id, { onDelete: 'set null' }),
+        queuedAt: integer('queued_at', { mode: 'timestamp_ms' }).notNull(),
+        startedAt: integer('started_at', { mode: 'timestamp_ms' }),
+        endedAt: integer('ended_at', { mode: 'timestamp_ms' })
+    },
+    (table) => [
+        uniqueIndex('play_once_per_session').on(table.sessionId, table.trackId),
+        index('play_of_session').on(table.sessionId, table.queuedAt)
+    ]
+)
+
 export type Profile = typeof profile.$inferSelect
 export type Session = typeof session.$inferSelect
 export type SessionMode = Session['mode']
 export type Track = typeof track.$inferSelect
+export type Play = typeof play.$inferSelect
+export type Playback = Session['playback']

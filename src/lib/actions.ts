@@ -5,12 +5,13 @@ import { m } from '#lib/paraglide/messages.js'
 
 /**
  * Posts to a form action of the current page from outside a form (a menu item, say), reloads the
- * page's data when it worked and says how it went in a toast. Returns whether it worked.
+ * page's data when it worked and says how it went in a toast (`success` may depend on what the
+ * action returned). Returns whether it worked.
  */
 export async function runAction(
     action: string,
     fields: Record<string, string | string[]>,
-    success: string
+    success: string | ((data: Record<string, unknown> | undefined) => string)
 ): Promise<boolean> {
     const body = new FormData()
     for (const [key, value] of Object.entries(fields))
@@ -24,7 +25,7 @@ export async function runAction(
         })
         const result = deserialize(await response.text())
         if (result.type === 'success') {
-            toast.success(success)
+            toast.success(typeof success === 'string' ? success : success(result.data))
             await invalidateAll()
             return true
         }

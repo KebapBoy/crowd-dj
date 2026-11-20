@@ -2,9 +2,9 @@
 
 A shared music queue for a room full of people. Someone starts a session, everyone joins with a link or QR code and adds music, and crowd-dj plays it **in turns** through one Spotify account on the room's speaker. Participants do not need a Spotify account.
 
-> **Status:** early development. Working so far: Spotify sign-in for hosts and the "My account" page (optional player account, token expiry), participant profiles, sessions with join link, QR code and settings, and music: search, pasted links, wishes and pools with the host's limits. Nothing plays yet: the engine that plays it and the inbox playlists come next. What it will do and why is in [docs/concept.md](docs/concept.md).
+> **Status:** early development. Working so far: Spotify sign-in for hosts and the "My account" page (optional player account, token expiry), participant profiles, sessions with join link, QR code and settings, music (search, pasted links, wishes and pools with the host's limits) and the engine that plays it in turns, with "now playing", "up next" and live updates. Skipping, skip voting and the inbox playlists come next. What it will do and why is in [docs/concept.md](docs/concept.md).
 
-## Features (planned)
+## Features (some planned)
 
 - Sessions with join link and QR code; participants keep a profile per browser, no sign-in.
 - Everyone keeps a pool of tracks, filled in the Spotify app (a collaborative inbox playlist) or in crowd-dj (search, pasted track links).
@@ -23,7 +23,7 @@ A shared music queue for a room full of people. Someone starts a session, everyo
 
 1. Create a Spotify app. Under redirect URIs add `https://dj.example.com/auth/callback` (your `ORIGIN` plus `/auth/callback`). Add every host and every player account to the allowlist (User Management).
 2. Use [deploy/compose.yaml](deploy/compose.yaml), for example as a git stack with that compose path, and set the variables in the environment of the stack. Every variable is explained in [.env.example](.env.example).
-3. Point your reverse proxy at the container on port 3000. crowd-dj limits new profiles per visitor address, so the proxy has to set or append `X-Forwarded-For` (SWAG, Caddy, Traefik and nginx with `$proxy_add_x_forwarded_for` do), and `XFF_DEPTH` has to match the number of proxies that append to it (the compose file assumes one). Do not publish port 3000 next to the proxy: a client talking to it directly could make up its address. Without the header the log says so once, and all such visitors share one limit.
+3. Point your reverse proxy at the container on port 3000. Session pages get live updates as server-sent events (`/s/<id>/events`); crowd-dj asks proxies not to buffer them (`X-Accel-Buffering: no`, which nginx and SWAG follow) and sends a ping every 25 seconds, so the usual read timeouts of 60 seconds are fine. crowd-dj limits new profiles per visitor address, so the proxy has to set or append `X-Forwarded-For` (SWAG, Caddy, Traefik and nginx with `$proxy_add_x_forwarded_for` do), and `XFF_DEPTH` has to match the number of proxies that append to it (the compose file assumes one). Do not publish port 3000 next to the proxy: a client talking to it directly could make up its address. Without the header the log says so once, and all such visitors share one limit.
 4. Hosts sign in from the start page. On **My account** (`/account`) they can connect a player: Spotify shows its account dialog, where they pick "Not you?" and sign in with the player. Its tokens are stored, encrypted; nobody stays signed in as it.
 
 The database is created and migrated when the server starts.
@@ -33,7 +33,18 @@ The database is created and migrated when the server starts.
 - **Start:** a signed-in host starts a session on the start page; it plays through their player, else their own account. A host has at most one open session; starting again opens it.
 - **Join:** everyone on the session page can show its link and QR code (**Invite**). Whoever opens it picks a name once and is in; no sign-in.
 - **Settings** (host only, any time): how the next track is picked, anonymous, limits per person, skipping own tracks, skip voting.
-- **End:** the host ends it, or it ends by itself after 30 minutes without anyone opening it. Then its link shows "This session has ended".
+- **Leave:** a participant leaves under **Participants**: their turns end and their open wishes no longer play; their pool stays. Opening the session again shows **Join again**.
+- **End:** the host ends it, or it ends by itself after 30 minutes in which none of its tracks played and nobody had it open. Then its link shows "This session has ended".
+
+### Playing
+
+The session page shows **Now playing** (cover, title, artists, album, position, for whom it plays) and **Up next**, and updates itself when something changes.
+
+- **Start:** the music starts when the host presses **Play** (also offered while nothing of the session plays, e.g. after it waited for music). Spotify has to be open on the device at the speaker, signed in as the account that plays (the player, else the host). Without an active device, **Device** lists the devices of that account; picking one starts the music there (or moves it there while it plays).
+- **In turns:** about 15 seconds before a track ends, crowd-dj picks the next one by the session's mode and hands it to Spotify's queue. Whoever has waited longest for a track of theirs comes first: their oldest open wish, or a random track from their pool (within the pool limit, newest first). Everyone who joined counts, also with their phone locked, until they leave. No track plays twice in a session, and a wish counts as played as soon as it is handed to Spotify.
+- **Up next** shows the track that comes next. Until it is handed to Spotify it may still change, for example when someone wishes a track.
+- **Someone plays something else** on the account in the Spotify app: the session pauses (no more tracks are handed to Spotify) and the host can **Resume**; the track that was already in Spotify's queue then plays (skipped to, so it does not play twice), unless it played meanwhile. Pausing in the Spotify app just makes crowd-dj wait. When there is nothing left to play and Spotify goes on by itself (autoplay), that is fine: the next wish or pool track is queued after the track that plays. When Spotify plays nothing (stopped, or paused on something that is not from the session), the next track starts right away.
+- **Quota:** crowd-dj asks the playing account's player what it does every 5 seconds while a session plays (a little more often in the last seconds of a track, and within 2 seconds after a change while it waits for music), every 10 seconds without a device and every 30 seconds after an error, and not at all while the session is stopped or paused. Each participant can make 60 changes (wishes, pool, leaving) a minute.
 
 ### Music
 
