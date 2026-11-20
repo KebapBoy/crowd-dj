@@ -166,6 +166,7 @@
     ],
     "catalog_too_many": "Zu viele Suchen auf einmal. Warte eine Minute und versuch es noch einmal.",
     "catalog_host_signin": "Der Host muss sich erst wieder mit Spotify anmelden, bevor gesucht werden kann.",
+    "catalog_host_refused": "Spotify hat den Account des Hosts abgelehnt. Vielleicht steht er nicht mehr auf der Allowlist der Spotify-App; sag dem Host Bescheid.",
     "catalog_busy": "Spotify ist gerade ausgelastet. Versuch es gleich noch einmal.",
     "catalog_failed": "Spotify ist nicht erreichbar. Bitte versuch es noch einmal.",
     "catalog_not_found": "Das kennt Spotify nicht.",

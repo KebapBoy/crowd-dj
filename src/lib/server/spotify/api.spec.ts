@@ -86,6 +86,9 @@ describe('spotify api', () => {
         expect(await api.track('host', ID(1))).toBeNull()
         expect(await api.track('host', '../me')).toBeNull()
         expect(fetchMock).toHaveBeenCalledTimes(1)
+        // An account that is not on the app's allowlist
+        fetchMock.mockResolvedValueOnce(json({}, 403))
+        await expect(api.track('host', ID(1))).rejects.toMatchObject({ status: 403 })
         fetchMock.mockResolvedValueOnce(json({}, 429))
         await expect(api.track('host', ID(1))).rejects.toMatchObject({ status: 429 })
     })

@@ -26,3 +26,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Pages and requests that arrive while a host connects their player no longer fail.
+- When Spotify refuses the host's account (for example after it was taken off the Spotify app's allowlist), searching in a session says so and asks to tell the host, instead of saying that Spotify cannot be reached.

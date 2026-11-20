@@ -48,6 +48,9 @@ export async function catalogCall<T>(
         console.error(errorSummary(caught))
         if (caught instanceof SpotifyError && caught.invalidGrant)
             error(503, m.catalog_host_signin())
+        // In development mode Spotify answers 403 for accounts that are not on the app's allowlist
+        if (caught instanceof SpotifyError && caught.status === 403)
+            error(503, m.catalog_host_refused())
         if (caught instanceof SpotifyError && caught.status === 429) error(503, m.catalog_busy())
         error(502, m.catalog_failed())
     }
