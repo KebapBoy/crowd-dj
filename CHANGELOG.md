@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Sessions: a signed-in host starts one from the start page (at most one at a time; it plays through the host's player, else their own account). Everyone in it can show its join link and QR code. The host sets how the next track is picked, anonymity, limits per person and skipping (own tracks, voting) at any time, and ends it; it also ends by itself after 30 minutes without anyone opening it, and its link then stops working.
+- Participant profiles without sign-in: a name, kept in a cookie of the browser, asked for when joining a session. "My profile" (`/profile`) changes the name and shows a personal link and QR code to use the profile on another device too (after asking there).
 - New look for all pages, built for phones first: light and dark theme (follows the system until you pick one in the header), a language menu in the header (English, German), confirmation dialogs for disconnecting the player and deleting the account, and a short message after each action. Everything is served by crowd-dj itself; no fonts or scripts are loaded from elsewhere.
 - Spotify sign-in for hosts: everyone on the Spotify app's allowlist. Tokens are stored encrypted with `APP_SECRET` and refreshed automatically.
 - "My account" page (`/account`): connect, swap and disconnect an optional player account that plays the host's sessions, see until when each sign-in is valid (with a warning two weeks before it expires), and delete the account.

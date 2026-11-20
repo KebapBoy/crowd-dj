@@ -23,11 +23,13 @@ These shape every decision below. Sources at the end.
 
 ## Roles
 
-| Role        | Signs in with Spotify                            | What they do                                                                                                             |
-| ----------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
-| Host        | Yes (Premium, on the allowlist)                  | Starts sessions; manages their own sign-in and player on "My account"                                                    |
-| Player      | Connected by its host, never signs in on its own | Optional second Premium account of a host that plays the host's sessions instead of the host's own account               |
-| Participant | No                                               | Profile per browser: picks a name once, kept in a cookie; a personal link or QR code moves the profile to another device |
+| Role        | Signs in with Spotify                            | What they do                                                                                                                |
+| ----------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
+| Host        | Yes (Premium, on the allowlist)                  | Starts sessions; manages their own sign-in and player on "My account"                                                       |
+| Player      | Connected by its host, never signs in on its own | Optional second Premium account of a host that plays the host's sessions instead of the host's own account                  |
+| Participant | No                                               | Profile per browser: picks a name once, kept in a cookie; a personal link or QR code uses the profile on another device too |
+
+The personal link carries the profile's cookie token (the database keeps only its hash). Opening it asks before it replaces the profile a device uses, so a link preview or a stray scan changes nothing. The link cannot be revoked yet (later: a new link that invalidates the old one).
 
 **Who may host:** everyone Spotify lets sign in. The allowlist in the developer dashboard (at most 5 accounts, players included) is the access control; crowd-dj has no admin and no approval of its own, since that would only repeat the allowlist.
 
@@ -62,7 +64,8 @@ No track plays twice in a session.
 
 - **Anonymous sessions:** nobody sees who wished or added a track, not even the host; everyone sees "yours" on their own tracks. The list of participants stays visible.
 - **Skipping:** the host can always skip. Whether people may skip their own tracks without a vote is a session setting. **Skip voting** (optional): a track is skipped when it has at least X votes and Y % of the active participants voted (X and Y set by the host).
-- **Ending:** the host ends it, or it ends by itself after a while with nothing playing and nobody connected (around 30 minutes). Then the join link stops working. At most one session per playing account at a time.
+- **Joining:** the session's random id is its join link (and QR code, which everyone in the session can show). A visitor without a profile picks a name and is in.
+- **Ending:** the host ends it, or it ends by itself after 30 minutes without a sign of life. Then the join link stops working. Until the engine and live updates exist, a sign of life is someone opening the session; later also a playing track or a connected participant. At most one session per playing account at a time: since a player belongs to exactly one host, this is one open session per host (a unique index on open sessions).
 - **Someone plays something else** in the Spotify app of the playing account: the session pauses (no more tracks handed to Spotify) and crowd-dj offers "Session paused – resume?". A pause in the Spotify app just makes it wait.
 - The playing track always shows cover art, title, artists and a link back to Spotify.
 

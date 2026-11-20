@@ -1,4 +1,12 @@
-import { integer, sqliteTable, text, type AnySQLiteColumn } from 'drizzle-orm/sqlite-core'
+import { sql } from 'drizzle-orm'
+import {
+    integer,
+    primaryKey,
+    sqliteTable,
+    text,
+    uniqueIndex,
+    type AnySQLiteColumn
+} from 'drizzle-orm/sqlite-core'
 
 /** Instance-wide settings as key/value pairs. */
 export const setting = sqliteTable('setting', {
@@ -42,3 +50,74 @@ export const login = sqliteTable('login', {
 })
 
 export type SpotifyAccount = typeof spotifyAccount.$inferSelect
+
+/**
+ * A participant: one person, known by a cookie in each browser they use. The cookie holds a random
+ * token, the table its hash; the personal link that moves the profile to another device carries
+ * the same token.
+ */
+export const profile = sqliteTable('profile', {
+    id: text('id').primaryKey(),
+    tokenHash: text('token_hash').notNull().unique(),
+    name: text('name').notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull()
+})
+
+/**
+ * A session of a host. It plays through the host's player, else the host's own account; since a
+ * player belongs to exactly one host, one open session per host means one per playing account.
+ * The id is random and is the join link; it stops working when the session ends.
+ */
+export const session = sqliteTable(
+    'session',
+    {
+        id: text('id').primaryKey(),
+        hostId: text('host_id')
+            .notNull()
+            .references(() => spotifyAccount.id, { onDelete: 'cascade' }),
+        mode: text('mode', { enum: ['wishes_first', 'pool_only', 'wishes_only'] })
+            .notNull()
+            .default('wishes_first'),
+        anonymous: integer('anonymous', { mode: 'boolean' }).notNull().default(false),
+        /** Limits per person; null means no limit. */
+        maxOpenWishes: integer('max_open_wishes'),
+        maxSessionWishes: integer('max_session_wishes'),
+        maxPoolSize: integer('max_pool_size'),
+        /** Whether people may skip their own tracks without a vote. */
+        skipOwn: integer('skip_own', { mode: 'boolean' }).notNull().default(true),
+        skipVoting: integer('skip_voting', { mode: 'boolean' }).notNull().default(false),
+        /** Skip voting: at least this many votes ... */
+        skipVotes: integer('skip_votes').notNull().default(2),
+        /** ... and at least this share of the active participants, in percent. */
+        skipPercent: integer('skip_percent').notNull().default(50),
+        createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+        /** Last sign of life (a visit; later also playback); the session ends after a while without. */
+        activeAt: integer('active_at', { mode: 'timestamp_ms' }).notNull(),
+        endedAt: integer('ended_at', { mode: 'timestamp_ms' }),
+        endReason: text('end_reason', { enum: ['host', 'idle'] })
+    },
+    (table) => [
+        uniqueIndex('session_open_per_host')
+            .on(table.hostId)
+            .where(sql`ended_at is null`)
+    ]
+)
+
+/** A profile that joined a session. */
+export const sessionMember = sqliteTable(
+    'session_member',
+    {
+        sessionId: text('session_id')
+            .notNull()
+            .references(() => session.id, { onDelete: 'cascade' }),
+        profileId: text('profile_id')
+            .notNull()
+            .references(() => profile.id, { onDelete: 'cascade' }),
+        joinedAt: integer('joined_at', { mode: 'timestamp_ms' }).notNull()
+    },
+    (table) => [primaryKey({ columns: [table.sessionId, table.profileId] })]
+)
+
+export type Profile = typeof profile.$inferSelect
+export type Session = typeof session.$inferSelect
+export type SessionMode = Session['mode']

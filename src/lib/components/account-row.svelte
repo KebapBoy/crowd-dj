@@ -12,7 +12,7 @@
 <div class="flex items-center gap-3">
     <Avatar.Root size="lg">
         {#if account.imageUrl}<Avatar.Image src={account.imageUrl} alt="" />{/if}
-        <Avatar.Fallback>{name.slice(0, 1).toUpperCase()}</Avatar.Fallback>
+        <Avatar.Fallback>{(Array.from(name)[0] ?? '').toUpperCase()}</Avatar.Fallback>
     </Avatar.Root>
     <div class="grid min-w-0 gap-1">
         <p class="truncate font-medium">{name}</p>

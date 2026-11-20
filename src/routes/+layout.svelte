@@ -1,11 +1,13 @@
 <script lang="ts">
     import '../app.css'
+    import UserRoundIcon from '@lucide/svelte/icons/user-round'
     import { ModeWatcher } from 'mode-watcher'
     import { resolve } from '$app/paths'
     import favicon from '#lib/assets/favicon.svg'
     import LocaleSwitch from '#lib/components/locale-switch.svelte'
     import RenewalBanner from '#lib/components/renewal-banner.svelte'
     import ThemeToggle from '#lib/components/theme-toggle.svelte'
+    import { Button } from '#lib/components/ui/button/index.js'
     import { Separator } from '#lib/components/ui/separator/index.js'
     import { Toaster } from '#lib/components/ui/sonner/index.js'
     import * as Tooltip from '#lib/components/ui/tooltip/index.js'
@@ -41,6 +43,18 @@
                 {__APP_VERSION__}
             </span>
             <div class="ml-auto flex items-center gap-1">
+                <Button
+                    href={resolve('/profile')}
+                    variant="ghost"
+                    class="h-11 max-w-40 gap-1.5 px-3 sm:h-9 sm:px-2.5"
+                    aria-label={m.profile_title()}
+                    title={m.profile_title()}
+                >
+                    <UserRoundIcon class="size-5 sm:size-4" />
+                    {#if data.profile}
+                        <span class="hidden truncate sm:inline">{data.profile.name}</span>
+                    {/if}
+                </Button>
                 <LocaleSwitch />
                 <ThemeToggle />
             </div>

@@ -1,6 +1,6 @@
 import type { Handle, HandleServerError, ServerInit } from '@sveltejs/kit/hooks'
 import { sequence } from '@sveltejs/kit/hooks'
-import { accounts, LOGIN_COOKIE } from '#lib/server/app.ts'
+import { accounts, LOGIN_COOKIE, PROFILE_COOKIE, profiles, sessions } from '#lib/server/app.ts'
 import { db } from '#lib/server/db/index.ts'
 import { migrateDatabase } from '#lib/server/db/migrate.ts'
 import { errorSummary } from '#lib/server/errors.ts'
@@ -8,9 +8,15 @@ import { m } from '#lib/paraglide/messages.js'
 import { getTextDirection } from '#lib/paraglide/runtime.js'
 import { paraglideMiddleware } from '#lib/paraglide/server.js'
 
-/** Brings the database up to date before the first request. */
+/** How often idle sessions are ended. */
+const IDLE_CHECK_MS = 60 * 1000
+
+/** Brings the database up to date before the first request and starts ending idle sessions. */
 export const init: ServerInit = async () => {
     await migrateDatabase(db)
+    setInterval(() => {
+        sessions.endIdle().catch((error) => console.error(errorSummary(error)))
+    }, IDLE_CHECK_MS).unref()
 }
 
 const handleParaglide: Handle = ({ event, resolve }) =>
@@ -34,7 +40,15 @@ const handleLogin: Handle = async ({ event, resolve }) => {
     return resolve(event)
 }
 
-export const handle: Handle = sequence(handleLogin, handleParaglide)
+/** The participant profile of this browser. */
+const handleProfile: Handle = async ({ event, resolve }) => {
+    const token = event.cookies.get(PROFILE_COOKIE)
+    event.locals.profile = token ? await profiles.forToken(token) : null
+    if (token && !event.locals.profile) event.cookies.delete(PROFILE_COOKIE, { path: '/' })
+    return resolve(event)
+}
+
+export const handle: Handle = sequence(handleLogin, handleProfile, handleParaglide)
 
 /**
  * Errors thrown with error() already carry a translated text. SvelteKit's own (404 and the like)

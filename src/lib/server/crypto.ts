@@ -39,3 +39,8 @@ export function randomToken(): string {
 export function hashToken(token: string): string {
     return createHash('sha256').update(token).digest('base64url')
 }
+
+/** A random id for rows that appear in links (96 bits, 16 characters base64url). */
+export function randomId(): string {
+    return randomBytes(12).toString('base64url')
+}

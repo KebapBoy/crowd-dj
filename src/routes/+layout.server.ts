@@ -1,10 +1,14 @@
 import { accounts } from '#lib/server/app.ts'
 import type { LayoutServerLoad } from './$types'
 
-/** Sign-ins of the host and their player that need renewing, for the banner on every page. */
+/**
+ * The participant profile for the header, and the sign-ins of the host and their player that need
+ * renewing, for the banner on every page.
+ */
 export const load: LayoutServerLoad = async ({ locals }) => {
     const host = locals.account
-    if (!host) return { renewals: [] }
+    const profile = locals.profile
+    if (!host) return { profile, renewals: [] }
     const player = await accounts.player(host.id)
     const renewals = [
         { kind: 'host' as const, account: host },
@@ -17,5 +21,5 @@ export const load: LayoutServerLoad = async ({ locals }) => {
             status: account.tokenStatus,
             expiresAt: account.tokenExpiresAt
         }))
-    return { renewals }
+    return { profile, renewals }
 }

@@ -2,7 +2,7 @@
 
 A shared music queue for a room full of people. Someone starts a session, everyone joins with a link or QR code and adds music, and crowd-dj plays it **in turns** through one Spotify account on the room's speaker. Participants do not need a Spotify account.
 
-> **Status:** early development. Working so far: Spotify sign-in for hosts and the "My account" page (optional player account, token expiry). Sessions come next. What it will do and why is in [docs/concept.md](docs/concept.md).
+> **Status:** early development. Working so far: Spotify sign-in for hosts and the "My account" page (optional player account, token expiry), participant profiles, and sessions with join link, QR code and settings. Nothing plays yet: music (pools, wishes, search) and the engine that plays it come next. What it will do and why is in [docs/concept.md](docs/concept.md).
 
 ## Features (planned)
 
@@ -27,6 +27,17 @@ A shared music queue for a room full of people. Someone starts a session, everyo
 4. Hosts sign in from the start page. On **My account** (`/account`) they can connect a player: Spotify shows its account dialog, where they pick "Not you?" and sign in with the player. Its tokens are stored, encrypted; nobody stays signed in as it.
 
 The database is created and migrated when the server starts.
+
+### Sessions
+
+- **Start:** a signed-in host starts a session on the start page; it plays through their player, else their own account. A host has at most one open session; starting again opens it.
+- **Join:** everyone on the session page can show its link and QR code (**Invite**). Whoever opens it picks a name once and is in; no sign-in.
+- **Settings** (host only, any time): how the next track is picked, anonymous, limits per person, skipping own tracks, skip voting.
+- **End:** the host ends it, or it ends by itself after 30 minutes without anyone opening it. Then its link shows "This session has ended".
+
+### Profiles
+
+A participant's name is kept in a cookie of the browser (**My profile**, `/profile`). The personal link and QR code there let the person use the profile on another device too; opening it asks before it replaces the profile a device uses. Anyone with that link can act as the person, so it is meant for their own devices only.
 
 ### My account
 
