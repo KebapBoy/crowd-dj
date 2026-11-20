@@ -1,6 +1,8 @@
 <script lang="ts">
     import CirclePauseIcon from '@lucide/svelte/icons/circle-pause'
     import PlayIcon from '@lucide/svelte/icons/play'
+    import SkipForwardIcon from '@lucide/svelte/icons/skip-forward'
+    import ThumbsDownIcon from '@lucide/svelte/icons/thumbs-down'
     import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert'
     import { runAction } from '#lib/actions.ts'
     import DevicePicker from '#lib/components/device-picker.svelte'
@@ -73,6 +75,20 @@
         return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
     }
 
+    async function skip(playId: string) {
+        busy = true
+        await runAction('skip', { play: playId }, m.skip_done())
+        busy = false
+    }
+
+    async function vote(playId: string, on: boolean) {
+        busy = true
+        await runAction('vote', { play: playId, on: String(on) }, (data) =>
+            data?.skipped ? m.skip_done() : on ? m.skip_voted() : m.skip_unvoted()
+        )
+        busy = false
+    }
+
     async function start() {
         busy = true
         await runAction('play', {}, (data) =>
@@ -132,6 +148,42 @@
                         {/if}
                         <span>{time(current.durationMs)}</span>
                     </div>
+                </div>
+            {/if}
+            {#if current.canSkip}
+                <Button
+                    variant="outline"
+                    class="h-11 w-full sm:h-8 sm:w-auto sm:self-start"
+                    disabled={busy}
+                    onclick={() => skip(current.playId)}
+                >
+                    <SkipForwardIcon data-icon="inline-start" />
+                    {m.skip()}
+                </Button>
+            {:else if current.votes}
+                <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                    {#if !current.votes.blocked}
+                        <Button
+                            variant={current.votes.mine ? 'secondary' : 'outline'}
+                            class="h-11 w-full sm:h-8 sm:w-auto"
+                            disabled={busy}
+                            aria-pressed={current.votes.mine}
+                            onclick={() => vote(current.playId, !current.votes!.mine)}
+                        >
+                            <ThumbsDownIcon data-icon="inline-start" />
+                            {current.votes.mine ? m.skip_unvote() : m.skip_vote()}
+                        </Button>
+                    {/if}
+                    <span class="text-sm text-muted-foreground tabular-nums">
+                        {m.skip_votes({ count: current.votes.count, needed: current.votes.needed })}
+                    </span>
+                    {#if current.votes.blocked === 'late'}
+                        <span class="text-sm text-muted-foreground">{m.skip_vote_late()}</span>
+                    {:else if current.votes.blocked === 'contribute'}
+                        <span class="text-sm text-muted-foreground">
+                            {m.skip_vote_contribute()}
+                        </span>
+                    {/if}
                 </div>
             {/if}
         {:else}

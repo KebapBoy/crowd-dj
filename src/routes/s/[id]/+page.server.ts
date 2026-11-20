@@ -10,6 +10,8 @@ import {
     sessionChanged,
     sessions,
     setProfileCookie,
+    skipRateLimit,
+    skips,
     wishes
 } from '#lib/server/app.ts'
 import { isSpotifyId } from '#lib/server/catalog.ts'
@@ -21,12 +23,14 @@ import {
     memberSession,
     openSession
 } from '#lib/server/guards.ts'
+import type { PlayerProblem, SkipResult } from '#lib/server/engine.ts'
 import { normalizeName } from '#lib/server/profiles.ts'
 import { parseSettings, type SettingsProblem } from '#lib/server/sessions.ts'
 import type { WishProblem } from '#lib/server/wishes.ts'
 import { accountName, problemMessage } from '#lib/playing-messages.ts'
 import { LINKS_MAX } from '#lib/spotify-links.ts'
 import { m } from '#lib/paraglide/messages.js'
+import type { Session } from '#lib/server/db/schema.ts'
 import type { Actions, PageServerLoad } from './$types'
 
 export const load: PageServerLoad = async ({ params, locals, url }) => {
@@ -59,7 +63,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
         profile,
         /** Whether the profile is in the session; false after it left. */
         member,
-        playing: await playing.view(session, profile?.id ?? null),
+        playing: await playing.view(session, { profileId: profile?.id ?? null, isHost, member }),
         members: member ? await sessions.members(session.id) : [],
         wishes: member && profile ? await wishes.list(session.id, profile.id) : [],
         pool: member && profile ? await pools.list(profile.id) : [],
@@ -96,6 +100,27 @@ const wishMessages: Record<WishProblem, () => string> = {
 
 /** Spotify device IDs are opaque; these are the characters they have been seen with. */
 const DEVICE_ID = /^[0-9A-Za-z_-]{1,100}$/
+
+/** The play a skip or a vote names (a random id). */
+function playId(form: FormData): string | null {
+    const id = form.get('play')
+    return typeof id === 'string' && /^[0-9A-Za-z_-]{1,64}$/.test(id) ? id : null
+}
+
+/** What to tell when a skip did not happen. */
+async function skipFailure(session: Session, result: Exclude<SkipResult, 'ok'>) {
+    if (result === 'gone') return fail(409, { error: m.skip_gone() })
+    if (result === 'paused') return fail(409, { error: m.skip_paused() })
+    return playerFailure(session, result)
+}
+
+/** Tells about a problem of the playing account with a request. */
+async function playerFailure(session: Session, problem: PlayerProblem) {
+    const player = (await accounts.player(session.hostId)) ?? (await accounts.get(session.hostId))
+    return fail(problem === 'busy' ? 503 : 502, {
+        error: problemMessage(problem, accountName(player))
+    })
+}
 
 /** The track IDs a form sent (`track`, once or more), or null when one is not valid. */
 function trackIds(form: FormData): string[] | null {
@@ -155,11 +180,51 @@ export const actions: Actions = {
             return fail(400, { error: m.error_request() })
         const result = await engine.play(session.id, device ?? undefined)
         if (result === 'ok' || result === 'nothing') return { played: result }
-        const player =
-            (await accounts.player(session.hostId)) ?? (await accounts.get(session.hostId))
-        return fail(result === 'busy' ? 503 : 502, {
-            error: problemMessage(result, accountName(player))
-        })
+        return playerFailure(session, result)
+    },
+    /** Skips the track that plays: the host any time, a participant their own when allowed. */
+    skip: async ({ params, request, locals }) => {
+        const session = await openSession(params.id)
+        const id = playId(await request.formData())
+        if (!id) return fail(400, { error: m.error_request() })
+        const isHost = session.hostId === locals.account?.id
+        const profile = isHost ? locals.profile : (await memberSession(params.id, locals)).profile
+        const current = await skips.current(session.id, id)
+        if (!current) return fail(409, { error: m.skip_gone() })
+        if (!isHost && !(session.skipOwn && current.profileId === profile?.id))
+            return fail(403, { error: m.error_request() })
+        if (!mayChange(profile?.id ?? session.hostId))
+            return fail(429, { error: m.session_too_many() })
+        if (!skipRateLimit([`session:${session.id}`]))
+            return fail(429, { error: m.skip_too_many() })
+        const result = await engine.skip(session.id, id)
+        if (result !== 'ok') return skipFailure(session, result)
+    },
+    /** A participant votes to skip the track that plays (`on`), or takes the vote back. */
+    vote: async ({ params, request, locals }) => {
+        const { session, profile } = await memberSession(params.id, locals)
+        if (!session.skipVoting) return fail(409, { error: m.skip_voting_off() })
+        // The host skips directly
+        if (session.hostId === locals.account?.id) return fail(403, { error: m.error_request() })
+        if (session.playback !== 'playing') return fail(409, { error: m.skip_gone() })
+        const form = await request.formData()
+        const id = playId(form)
+        if (!id) return fail(400, { error: m.error_request() })
+        if (!mayChange(profile.id)) return fail(429, { error: m.session_too_many() })
+        const on = form.get('on') === 'true'
+        const voted = await skips.vote(session, id, profile.id, on)
+        if (voted === 'gone') return fail(409, { error: m.skip_gone() })
+        if (voted === 'late') return fail(409, { error: m.skip_vote_late() })
+        if (voted === 'contribute') return fail(409, { error: m.skip_vote_contribute() })
+        if (voted !== 'ok') return fail(403, { error: m.error_request() })
+        if (on && (await skips.reached(session, id))) {
+            const result = await engine.skip(session.id, id)
+            if (result === 'ok') return { skipped: true }
+            // Paused in Spotify: the engine skips once it plays again
+            if (result !== 'gone' && result !== 'paused') return playerFailure(session, result)
+        }
+        events.publish(session.id)
+        return { skipped: false }
     },
     wish: async ({ params, request, locals }) => {
         const { session, profile } = await memberSession(params.id, locals)

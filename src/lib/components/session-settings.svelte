@@ -112,8 +112,6 @@
 
     <Separator />
 
-    <p class="text-sm text-muted-foreground">{m.session_skip_soon()}</p>
-
     <Label class="flex cursor-pointer items-center justify-between gap-4 font-normal">
         <span class="font-medium">{m.session_skip_own()}</span>
         <Switch name="skipOwn" checked={settings.skipOwn} />

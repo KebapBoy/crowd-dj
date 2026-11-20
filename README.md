@@ -32,7 +32,7 @@ Spotify's own [Jam](https://support.spotify.com/article/jam/) also lets a group 
 - **Anyone can join.** A browser and a name are enough. A Jam guest needs the Spotify app and an account (Free only in the same room, Premium to join from elsewhere).
 - **Fair turns.** Whoever has waited longest for a track of theirs comes next. A Jam has one shared queue, so whoever adds the most gets the most played.
 - **Pools that last.** Your favourite tracks stay with your profile and fill your turns in every session, also when you are not adding anything right now. A Jam fills gaps with Spotify's recommendations.
-- **House rules.** The host sets how wishes and pools mix, limits per person and anonymous sessions. Participants add music, but cannot pause, skip or turn up the volume on the room's speaker.
+- **House rules.** The host sets how wishes and pools mix, limits per person, anonymous sessions and who may skip. Participants add music, but cannot pause or turn up the volume on the room's speaker, and a track nobody likes goes by vote, not because one person did not like it.
 - **It keeps going without the host.** The session runs on your server, so the host's phone can stay in their pocket or go home with them. A Jam ends when its host leaves.
 - **Your own installation.** It runs on your server, with your data.
 
@@ -40,7 +40,7 @@ Spotify's own [Jam](https://support.spotify.com/article/jam/) also lets a group 
 
 - **No setup.** Every Premium user can start a Jam in the Spotify app. crowd-dj needs a server, a Spotify developer app and allows at most 5 hosts and players.
 - **Listening from elsewhere.** Premium guests hear the Jam on their own devices; crowd-dj plays only in the room.
-- **Guests control the music.** In a Jam, guests can skip and change what plays (unless the host turns it off); crowd-dj has no skipping yet.
+- **Guests control the music.** In a Jam, guests can skip and change what plays (unless the host turns it off); in crowd-dj they only skip their own tracks or vote, if the host allows it.
 - **Everywhere Spotify is.** Joining by holding phones together, Jams that start by themselves on smart speakers, on TVs and in the car, and recommendations that take the group's taste into account.
 
 ## Using it
@@ -67,11 +67,13 @@ The session page shows **Now playing** (cover, title, artists, for whom it plays
 - The host presses **Play** to start. If Spotify is not playing on any device, **Device** lists the devices of the playing account; pick the one at the speaker.
 - If someone plays something else in the Spotify app on that account, the session pauses and the host can **Resume**. Pausing in the Spotify app just makes crowd-dj wait.
 - If nothing is left to play and Spotify continues on its own (autoplay), crowd-dj lets it and plays the next wish or pool track after that track.
+- **Skip** under Now playing skips the track while it plays: the host can always, and you can skip your own tracks if the host allows it. The next track plays right away.
+- With **skip voting** on, everyone else sees **Vote to skip** and how many votes it takes. The track is skipped once it has the host's minimum number of votes and the host's share of the participants who are there (who have the session open or voted), but never more votes than there are people to vote. To vote, you need to have been in the session when the track started and to have added something (a wish or a track in your pool), so nobody joins in a hurry with extra profiles to vote a track away; you can take your vote back while it plays. Votes count only for the track they were given to.
 
 ### For hosts
 
 - **Start:** on the start page. You have at most one open session; starting again opens it.
-- **Settings** (any time): how the next track is picked, anonymous, limits per person.
+- **Settings** (any time): how the next track is picked, anonymous, limits per person, skipping (own tracks without a vote; skip voting with the votes and the share of participants it takes).
 - **End:** ends the session for everyone; its link then shows "This session has ended".
 - **My account:** connect, swap or disconnect a player account (Spotify shows its account dialog: pick "Not you?" and sign in with the player). See until when your sign-in and your player's are valid: Spotify requires signing in again every 6 months, and crowd-dj warns two weeks before. **Delete my account** removes your stored tokens and your player's and signs you out everywhere.
 
@@ -79,7 +81,6 @@ The session page shows **Now playing** (cover, title, artists, for whom it plays
 
 - **No streaming to phones.** The music plays on the speaker of the playing account; Spotify's terms do not allow passing that sound on to several listeners, so crowd-dj never will.
 - **At most 5 Spotify accounts per installation.** Spotify allows a self-made app only 5 users, hosts and players together. Participants do not count.
-- **No skipping yet.** A track plays to its end. The skip settings in a session (skip own tracks, skip voting) are already there, but have no effect yet.
 - **No playlists yet.** crowd-dj does not read Spotify playlists; to bring a whole playlist, copy its track links as described above.
 - **The personal link of a profile cannot be revoked yet.** Whoever has it can use that profile.
 
@@ -87,7 +88,6 @@ The session page shows **Now playing** (cover, title, artists, for whom it plays
 
 Ideas that may come next. No promises and no dates, but this is where crowd-dj is heading:
 
-- **Skip and skip voting.** The host skips any time, everyone may skip their own tracks, and the room votes the rest away: a track goes when enough people (and a big enough share of the room) want it gone.
 - **Fill your pool from the Spotify app.** Add tracks to a shared inbox playlist right in Spotify, wherever you are, and they land in your pool: a permanent inbox per host, and one per session if the host likes. Link your Spotify profile once and crowd-dj knows which tracks are yours.
 - **Listen along from anywhere.** Not in the room? Sign in with your own Spotify Premium and hear the same track at the same moment, in a browser tab or in your Spotify app.
 - **Share to crowd-dj.** On Android, "Share → crowd-dj" in the Spotify app adds a track to your pool.

@@ -10,6 +10,7 @@ import { createPlayingView } from './playing'
 import { createPools } from './pools'
 import { createProfiles } from './profiles'
 import { createSessions } from './sessions'
+import { createSkips } from './skips'
 import type { PlayerState } from './spotify/api'
 import { SpotifyError } from './spotify/oauth'
 import { createWishes } from './wishes'
@@ -142,6 +143,9 @@ describe('engine', () => {
     let api: { [K in keyof PlayerApi]: ReturnType<typeof vi.fn> }
     let events: ReturnType<typeof createEvents>
     let engine: ReturnType<typeof createEngine>
+    let skips: ReturnType<typeof createSkips>
+    /** Profiles with the session open. */
+    let there: Set<string>
 
     const playing = (trackId: string, progressMs = 0, isPlaying = true): PlayerState => ({
         device: { id: 'speaker', name: 'Speaker' },
@@ -171,12 +175,15 @@ describe('engine', () => {
             })
         }
         events = createEvents({ delayMs: 0 })
+        there = new Set()
+        skips = createSkips({ db, present: () => there, now: () => now })
         engine = createEngine({
             db,
             api: api as unknown as PlayerApi,
             sessions,
             picker,
             events,
+            votesReached: skips.reached,
             now: () => now,
             schedule: false
         })
@@ -216,9 +223,10 @@ describe('engine', () => {
         const view = await createPlayingView({
             db,
             picker,
+            skips,
             live: engine.live,
             now: () => now
-        }).view(await session(), sam)
+        }).view(await session(), { profileId: sam, isHost: false, member: true })
         expect(view.current).toMatchObject({ mine: true, by: null, isPlaying: true })
         expect(view.current?.track.id).toBe(ID(2))
     })
@@ -434,6 +442,204 @@ describe('engine', () => {
         later(1000)
         await engine.tick(sessionId)
         expect(changed.mock.calls.length).toBe(calls)
+    })
+
+    describe('skipping', () => {
+        /** The session's track that plays. */
+        const current = async () => (await rows()).find((row) => row.startedAt && !row.endedAt)!
+
+        beforeEach(async () => {
+            await pools.add(alex, [ID(1)])
+            await pools.add(sam, [ID(2)])
+            await engine.play(sessionId)
+            await engine.tick(sessionId)
+        })
+
+        it('skips to the track queued in Spotify', async () => {
+            player = playing(ID(1), DURATION - 10_000)
+            later(5000)
+            await engine.tick(sessionId)
+            expect(spotifyQueue).toEqual([ID(2)])
+            const first = await current()
+            expect(await engine.skip(sessionId, first.id)).toBe('ok')
+            expect(api.next).toHaveBeenCalledTimes(1)
+            expect(player?.trackId).toBe(ID(2))
+            later(1000)
+            await engine.tick(sessionId)
+            expect((await current()).trackId).toBe(ID(2))
+            expect((await rows())[0].endedAt).not.toBeNull()
+            // A page that still shows the first track skips nothing
+            expect(await engine.skip(sessionId, first.id)).toBe('gone')
+            expect(api.next).toHaveBeenCalledTimes(1)
+        })
+
+        it('plays the next track right away when none is queued yet, else lets Spotify go on', async () => {
+            later(5000)
+            expect(await engine.skip(sessionId, (await current()).id)).toBe('ok')
+            expect(api.play).toHaveBeenLastCalledWith('host', ID(2), undefined)
+            later(1000)
+            await engine.tick(sessionId)
+            expect((await current()).trackId).toBe(ID(2))
+
+            // Nothing left: Spotify goes on by itself, which does not pause the session
+            spotifyQueue = [ID(17)]
+            expect(await engine.skip(sessionId, (await current()).id)).toBe('ok')
+            expect(api.next).toHaveBeenCalled()
+            later(1000)
+            expect(await engine.tick(sessionId)).not.toBeNull()
+            expect((await session()).playback).toBe('playing')
+            expect(await rows()).toHaveLength(2)
+        })
+
+        it('skips nothing that is paused in Spotify or that Spotify already left', async () => {
+            const first = await current()
+            api.play.mockClear()
+            player = playing(ID(1), 30_000, false)
+            expect(await engine.skip(sessionId, first.id)).toBe('paused')
+            player = playing(ID(19), 0)
+            expect(await engine.skip(sessionId, first.id)).toBe('gone')
+            expect(api.play).not.toHaveBeenCalled()
+            expect(api.next).not.toHaveBeenCalled()
+            expect(await current()).toMatchObject({ id: first.id })
+        })
+
+        it('keeps the track when Spotify refuses the skip', async () => {
+            api.play.mockRejectedValueOnce(new SpotifyError('refused', 403))
+            const first = await current()
+            expect(await engine.skip(sessionId, first.id)).toBe('refused')
+            expect(await current()).toMatchObject({ id: first.id })
+            expect(await rows()).toHaveLength(1)
+        })
+
+        describe('by votes', () => {
+            let kim: string
+
+            beforeEach(async () => {
+                await db
+                    .update(sessionTable)
+                    .set({ skipVoting: true, skipVotes: 1, skipPercent: 60 })
+                kim = (await createProfiles({ db }).create('Kim')).profile.id
+                // Kim was there when the track started and has a pool too
+                await sessions.join(sessionId, kim)
+                await pools.add(kim, [ID(3)])
+                there = new Set([alex, sam, kim])
+            })
+
+            it('skips once enough of those who are there voted', async () => {
+                const first = await current()
+                // Alex's track, and Alex may skip it directly: 60 % of Sam and Kim, two votes
+                expect(await skips.vote(await session(), first.id, alex, true)).toBe('own')
+                expect(await skips.vote(await session(), first.id, kim, true)).toBe('ok')
+                expect(await skips.tally(await session(), first, kim)).toEqual({
+                    count: 1,
+                    needed: 2,
+                    mine: true,
+                    blocked: null
+                })
+                await skips.vote(await session(), first.id, kim, false)
+                expect((await skips.tally(await session(), first)).count).toBe(0)
+                await skips.vote(await session(), first.id, kim, true)
+                await skips.vote(await session(), first.id, kim, true)
+                expect((await skips.tally(await session(), first)).count).toBe(1)
+
+                // Kim closed the page: the vote still counts, and Kim with it
+                there = new Set([alex, sam])
+                expect(await skips.tally(await session(), first)).toMatchObject({
+                    count: 1,
+                    needed: 2
+                })
+                later(5000)
+                await engine.tick(sessionId)
+                expect(await current()).toMatchObject({ id: first.id })
+
+                // Sam leaves: Kim is the only one left to vote, so Kim's vote is enough, which the
+                // engine notices at its next look at the player
+                await sessions.leave(sessionId, sam)
+                expect((await skips.tally(await session(), first)).needed).toBe(1)
+                later(5000)
+                await engine.tick(sessionId)
+                expect(api.play).toHaveBeenLastCalledWith('host', ID(3), undefined)
+                later(1000)
+                await engine.tick(sessionId)
+                expect((await current()).trackId).toBe(ID(3))
+                // Votes belong to the track: none on the next, and none on one that ended
+                expect((await skips.tally(await session(), await current())).count).toBe(0)
+                expect(await skips.vote(await session(), first.id, kim, true)).toBe('gone')
+            })
+
+            it('takes at least the minimum, rounds the share up and caps both at the voters', async () => {
+                const first = await current()
+                await db.update(sessionTable).set({ skipOwn: false, skipVotes: 3, skipPercent: 50 })
+                expect((await skips.tally(await session(), first)).needed).toBe(3)
+                await db.update(sessionTable).set({ skipVotes: 1, skipPercent: 50 })
+                expect((await skips.tally(await session(), first)).needed).toBe(2)
+                await db.update(sessionTable).set({ skipVotes: 5 })
+                expect((await skips.tally(await session(), first)).needed).toBe(3)
+                there = new Set()
+                expect((await skips.tally(await session(), first)).needed).toBe(1)
+            })
+
+            it('lets vote only who was there when the track started and added something', async () => {
+                const first = await current()
+                const profiles = createProfiles({ db, now: () => now })
+                const lee = (await profiles.create('Lee')).profile.id
+                const max = (await profiles.create('Max')).profile.id
+                await sessions.join(sessionId, max)
+                later(1000)
+                await sessions.join(sessionId, lee)
+                await pools.add(lee, [ID(4)])
+                there = new Set([alex, sam, kim, lee, max])
+                // Max has added nothing, Lee came during the track: neither votes nor counts
+                expect(await skips.vote(await session(), first.id, max, true)).toBe('contribute')
+                expect(await skips.vote(await session(), first.id, lee, true)).toBe('late')
+                expect(await skips.vote(await session(), first.id, 'stranger', true)).toBe('member')
+                expect(await skips.tally(await session(), first, lee)).toEqual({
+                    count: 0,
+                    needed: 2,
+                    mine: false,
+                    blocked: 'late'
+                })
+                // A wish in the session counts as adding something
+                await wishes.add(await session(), max, ID(5))
+                expect(await skips.vote(await session(), first.id, max, true)).toBe('ok')
+                // 60 % of Sam, Kim and Max
+                expect((await skips.tally(await session(), first)).needed).toBe(2)
+            })
+
+            it('votes on nothing but the track that plays', async () => {
+                player = playing(ID(1), DURATION - 10_000)
+                later(5000)
+                await engine.tick(sessionId)
+                const queued = (await rows()).find((row) => !row.startedAt)!
+                expect(await skips.vote(await session(), queued.id, kim, true)).toBe('gone')
+                expect(await skips.vote(await session(), 'other', kim, true)).toBe('gone')
+            })
+
+            it('does not try again at every look when Spotify refuses', async () => {
+                const first = await current()
+                await skips.vote(await session(), first.id, sam, true)
+                await skips.vote(await session(), first.id, kim, true)
+                api.play.mockRejectedValue(new SpotifyError('refused', 403))
+                later(5000)
+                expect(await engine.tick(sessionId)).not.toBeNull()
+                later(5000)
+                await engine.tick(sessionId)
+                expect(api.play).toHaveBeenCalledTimes(2)
+                expect(await current()).toMatchObject({ id: first.id })
+                expect(await engine.skip(sessionId, first.id)).toBe('refused')
+            })
+
+            it('counts no votes while skip voting is off', async () => {
+                const first = await current()
+                await skips.vote(await session(), first.id, sam, true)
+                await skips.vote(await session(), first.id, kim, true)
+                await db.update(sessionTable).set({ skipVoting: false })
+                expect(await skips.reached(await session(), first.id)).toBe(false)
+                later(5000)
+                await engine.tick(sessionId)
+                expect(await current()).toMatchObject({ id: first.id })
+            })
+        })
     })
 })
 

@@ -45,6 +45,11 @@ export function createEvents({ delayMs = 500 }: { delayMs?: number } = {}) {
             }
         },
 
+        /** The keys (profiles, the host) with a page of the session open. */
+        present(sessionId: string): Set<string> {
+            return new Set(sessions.get(sessionId)?.values())
+        },
+
         publish(sessionId: string) {
             if (delayMs === 0) return flush(sessionId)
             if (pending.has(sessionId) || !sessions.has(sessionId)) return

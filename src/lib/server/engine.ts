@@ -44,6 +44,12 @@ export interface Live {
 /** What a host's request to play gave. */
 export type PlayResult = 'ok' | 'nothing' | PlayerProblem
 
+/**
+ * What a request to skip gave: `gone` when the track no longer plays, `paused` while it is paused
+ * in Spotify (a skip would start the music again).
+ */
+export type SkipResult = 'ok' | 'gone' | 'paused' | PlayerProblem
+
 export type PlayerApi = Pick<
     SpotifyApi,
     'playerState' | 'devices' | 'play' | 'queue' | 'userQueue' | 'transfer' | 'next'
@@ -60,6 +66,8 @@ interface Memory {
     dry: boolean | null
     /** When crowd-dj last started a track itself, so it does not start it again too soon. */
     startedAt: number | null
+    /** The play whose skip by votes Spotify refused: not tried again while it plays. */
+    refused: string | null
     timer: ReturnType<typeof setTimeout> | null
     /** When the timer fires (wall clock), so a poke only ever brings it forward. */
     dueAt: number
@@ -89,6 +97,7 @@ export function createEngine({
     sessions,
     picker,
     events,
+    votesReached = async () => false,
     now = () => new Date(),
     schedule = true
 }: {
@@ -97,6 +106,8 @@ export function createEngine({
     sessions: Sessions
     picker: Picker
     events: Events
+    /** Whether the votes to skip the play reached what it takes (`skips.reached`). */
+    votesReached?: (session: Session, playId: string) => Promise<boolean>
     now?: () => Date
     /** Off in tests, which call `tick` themselves. */
     schedule?: boolean
@@ -110,6 +121,7 @@ export function createEngine({
                 live: null,
                 dry: null,
                 startedAt: null,
+                refused: null,
                 timer: null,
                 dueAt: 0,
                 queue: Promise.resolve()
@@ -252,6 +264,28 @@ export function createEngine({
             if (deviceId) await api.transfer(accountId, deviceId, false)
             await api.next(accountId)
         } else await api.play(accountId, queued.trackId, deviceId)
+    }
+
+    /**
+     * Skips the session's track that plays: to the queued track (by skipping to it when it is next
+     * in Spotify's queue), else to the next one right away. With nothing to play, Spotify goes on
+     * by itself, like after the music ran out.
+     */
+    async function skipCurrent(session: Session, accountId: string, current: Play, entry: Memory) {
+        const { queued } = await ours(session.id)
+        if (queued) await playQueued(accountId, queued, await api.userQueue(accountId))
+        else {
+            let result: Play | 'nothing' | 'retry' = 'retry'
+            // A wish taken back or a track taken meanwhile: ask again
+            for (let i = 0; i < 3 && result === 'retry'; i++)
+                result = await handOver(session, accountId, 'play')
+            // Tracks keep being taken from under the picker: better keep this one than play another
+            if (result === 'retry') throw new Error('The next track kept changing while skipping')
+            if (result === 'nothing') await api.next(accountId)
+        }
+        await endPlay(current, now())
+        entry.dry = null
+        entry.startedAt = now().getTime()
     }
 
     /** Keeps what the player does and tells the pages when it matters to them. */
@@ -406,6 +440,18 @@ export function createEngine({
             if (state.isPlaying) {
                 // Only music that plays is a sign of life: a session paused in Spotify ends as idle
                 await sessions.touch(session.id)
+                // Enough votes (also after someone left or the host lowered the thresholds)
+                if (entry.refused !== current.id && (await votesReached(session, current.id))) {
+                    try {
+                        await skipCurrent(session, accountId, current, entry)
+                        changed()
+                        return MIN_DELAY_MS
+                    } catch (error) {
+                        // The track plays on; asking again at every look would only cost quota
+                        entry.refused = current.id
+                        console.error(errorSummary(error))
+                    }
+                }
                 await queueIfDue()
                 return wait()
             }
@@ -558,6 +604,36 @@ export function createEngine({
                 events.publish(sessionId)
                 plan(sessionId, MIN_DELAY_MS)
                 return result
+            })
+        },
+
+        /**
+         * Skips the track that plays, when it is still `playId` (a page may show one that has
+         * ended meanwhile, and two votes may reach the threshold at once).
+         */
+        skip(sessionId: string, playId: string): Promise<SkipResult> {
+            return serial(sessionId, async () => {
+                const session = await sessions.get(sessionId)
+                if (!session || session.endedAt || session.playback !== 'playing') return 'gone'
+                const { current } = await ours(sessionId)
+                if (current?.id !== playId) return 'gone'
+                const entry = remember(sessionId)
+                const accountId = await playingAccount(session.hostId)
+                try {
+                    // As it is now: the last look may be seconds old, and a skip must neither start
+                    // music paused in Spotify nor skip a track Spotify has already moved on from
+                    const state = await api.playerState(accountId)
+                    if (state?.trackId !== current.trackId) return 'gone'
+                    if (!state.isPlaying) return 'paused'
+                    await skipCurrent(session, accountId, current, entry)
+                } catch (error) {
+                    const problem = problemOf(error)
+                    if (problem === 'failed') console.error(errorSummary(error))
+                    return problem
+                }
+                events.publish(sessionId)
+                plan(sessionId, MIN_DELAY_MS)
+                return 'ok'
             })
         },
 

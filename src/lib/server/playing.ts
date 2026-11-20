@@ -4,6 +4,7 @@ import type { Database } from './db/open'
 import { play, profile, track, type Playback, type Session } from './db/schema'
 import type { Live, PlayerProblem } from './engine'
 import type { Picker } from './picker'
+import type { Skips, VoteTally } from './skips'
 
 /** A track of the session, with whose turn it is. */
 export interface SessionTrack {
@@ -21,21 +22,43 @@ export interface PlayingView {
     /** The device the playing account plays on. */
     device: string | null
     /** The session's track that plays, with where it was when the page loaded. */
-    current: (SessionTrack & { progressMs: number; durationMs: number; isPlaying: boolean }) | null
+    current:
+        | (SessionTrack & {
+              /** The play, which a skip or a vote names. */
+              playId: string
+              progressMs: number
+              durationMs: number
+              isPlaying: boolean
+              /** Whether the one looking may skip it right away (the host; their own track). */
+              canSkip: boolean
+              /** The votes to skip it, while the one looking can vote on it; else null. */
+              votes: VoteTally | null
+          })
+        | null
     /** Spotify plays something that is not from the session (after the queue ran dry, or a pause). */
     elsewhere: boolean
     /** The track that comes next: queued in Spotify already, or the one it would be now. */
     next: (SessionTrack & { queued: boolean }) | null
 }
 
+/** Who looks at a session's page, for what they may do with the track that plays. */
+export interface Viewer {
+    profileId: string | null
+    isHost: boolean
+    /** Whether the profile is in the session (has not left). */
+    member: boolean
+}
+
 export function createPlayingView({
     db,
     picker,
+    skips,
     live,
     now = () => new Date()
 }: {
     db: Database
     picker: Picker
+    skips: Skips
     live: (sessionId: string) => Live | null
     now?: () => Date
 }) {
@@ -61,8 +84,9 @@ export function createPlayingView({
     }
 
     return {
-        /** The session's music as the profile `viewerId` (or a visitor without one) sees it. */
-        async view(session: Session, viewerId: string | null): Promise<PlayingView> {
+        /** The session's music as a viewer sees it. */
+        async view(session: Session, viewer: Viewer): Promise<PlayingView> {
+            const viewerId = viewer.profileId
             const rows = await db
                 .select()
                 .from(play)
@@ -88,12 +112,23 @@ export function createPlayingView({
                               (state.isPlaying ? now().getTime() - state.at.getTime() : 0)
                       )
                     : 0
+                // Only while it plays: the engine skips nothing otherwise, and a skip would start
+                // music paused in Spotify again
+                const skippable = session.playback === 'playing' && known && state.isPlaying
+                const canSkip =
+                    skippable &&
+                    (viewer.isHost ||
+                        (viewer.member && session.skipOwn && described?.mine === true))
+                const canVote = skippable && !canSkip && viewer.member && session.skipVoting
                 if (described)
                     current = {
                         ...described,
+                        playId: currentPlay.id,
                         progressMs,
                         durationMs,
-                        isPlaying: known && state.isPlaying
+                        isPlaying: known && state.isPlaying,
+                        canSkip,
+                        votes: canVote ? await skips.tally(session, currentPlay, viewerId) : null
                     }
             }
 

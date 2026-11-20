@@ -89,7 +89,7 @@ export const session = sqliteTable(
         skipVoting: integer('skip_voting', { mode: 'boolean' }).notNull().default(false),
         /** Skip voting: at least this many votes ... */
         skipVotes: integer('skip_votes').notNull().default(2),
-        /** ... and at least this share of the active participants, in percent. */
+        /** ... and at least this share of the participants (joined, not left), in percent. */
         skipPercent: integer('skip_percent').notNull().default(50),
         /**
          * What the engine does: `stopped` until the host presses play, `playing` while it hands
@@ -221,6 +221,24 @@ export const play = sqliteTable(
         uniqueIndex('play_once_per_session').on(table.sessionId, table.trackId),
         index('play_of_session').on(table.sessionId, table.queuedAt)
     ]
+)
+
+/**
+ * A participant's vote to skip a track while it plays. Votes belong to the play, so they count
+ * only for that track.
+ */
+export const skipVote = sqliteTable(
+    'skip_vote',
+    {
+        playId: text('play_id')
+            .notNull()
+            .references(() => play.id, { onDelete: 'cascade' }),
+        profileId: text('profile_id')
+            .notNull()
+            .references(() => profile.id, { onDelete: 'cascade' }),
+        createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull()
+    },
+    (table) => [primaryKey({ columns: [table.playId, table.profileId] })]
 )
 
 export type Profile = typeof profile.$inferSelect

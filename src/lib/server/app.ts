@@ -11,6 +11,7 @@ import { createPools } from './pools'
 import { createProfiles } from './profiles'
 import { createRateLimit } from './rate-limit'
 import { createSessions } from './sessions'
+import { createSkips } from './skips'
 import { createSpotifyApi } from './spotify/api'
 import { createWishes } from './wishes'
 import { APP_SECRET, SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET } from '$app/env/private'
@@ -48,13 +49,33 @@ export const events = createEvents()
 
 const picker = createPicker({ db })
 
+/** Who may skip the track that plays, and the votes to skip it. */
+export const skips = createSkips({
+    db,
+    // Participants with the session open (their live updates); the host's pages are not one's
+    present: (sessionId) =>
+        new Set(
+            [...events.present(sessionId)]
+                .filter((key) => key.startsWith('profile:'))
+                .map((key) => key.slice('profile:'.length))
+        )
+})
+
 /** Picks the next track of a session and plays it through the playing account. */
-export const engine = createEngine({ db, api: spotify, sessions, picker, events })
+export const engine = createEngine({
+    db,
+    api: spotify,
+    sessions,
+    picker,
+    events,
+    votesReached: skips.reached
+})
 
 /** "Now playing" and "up next" of a session, as its pages show them. */
 export const playing = createPlayingView({
     db,
     picker,
+    skips,
     live: (sessionId) => engine.live(sessionId)
 })
 
@@ -77,8 +98,14 @@ export const catalogRateLimit = createRateLimit({
     windowMs: 60 * 1000
 })
 
-/** Changes per minute a participant may make in sessions (wishes, pools, leaving). */
+/** Changes per minute a participant may make in sessions (wishes, pools, votes, skips, leaving). */
 export const actionRateLimit = createRateLimit({ limits: { profile: 60 }, windowMs: 60 * 1000 })
+
+/**
+ * Skips per minute in a session, by the host and participants together: each one costs a few calls
+ * to Spotify on the quota the hosts share, and nobody needs more to get past a few tracks.
+ */
+export const skipRateLimit = createRateLimit({ limits: { session: 10 }, windowMs: 60 * 1000 })
 
 /**
  * New participant profiles per hour from one client address (a room behind one router shares it,
