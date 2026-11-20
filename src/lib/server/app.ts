@@ -1,9 +1,14 @@
 import type { Cookies } from '@sveltejs/kit'
 import { createAccounts } from './accounts'
+import { createCatalog } from './catalog'
 import { tokenKey } from './crypto'
 import { db } from './db'
+import { createPools } from './pools'
 import { createProfiles } from './profiles'
+import { createRateLimit } from './rate-limit'
 import { createSessions } from './sessions'
+import { createSpotifyApi } from './spotify/api'
+import { createWishes } from './wishes'
 import { APP_SECRET, SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET } from '$app/env/private'
 
 /** The Spotify app crowd-dj signs in with. */
@@ -21,6 +26,25 @@ export const profiles = createProfiles({ db })
 
 /** Sessions of the hosts. */
 export const sessions = createSessions({ db })
+
+/** Spotify's catalog through the hosts' tokens, with the track cache. */
+export const catalog = createCatalog({ db, api: createSpotifyApi({ tokens: accounts }) })
+
+/** Participants' pools, kept across sessions. */
+export const pools = createPools({ db })
+
+/** Wishes in sessions. */
+export const wishes = createWishes({ db })
+
+/**
+ * Calls to Spotify per minute that participants may cause (searches, albums, links not cached yet):
+ * each one, everyone in a session together (profiles are free to make), and everyone on this
+ * instance, so nobody uses up the quota the hosts' accounts share.
+ */
+export const catalogRateLimit = createRateLimit({
+    limits: { profile: 100, session: 150, all: 300 },
+    windowMs: 60 * 1000
+})
 
 /** Cookie with the sign-in token of a host. */
 export const LOGIN_COOKIE = 'crowd_dj_login'

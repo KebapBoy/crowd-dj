@@ -12,6 +12,7 @@
 </script>
 
 <script lang="ts">
+    import type { Snippet } from 'svelte'
     import DiscIcon from '@lucide/svelte/icons/disc-3'
     import ExternalLinkIcon from '@lucide/svelte/icons/external-link'
     import { Button } from '#lib/components/ui/button/index.js'
@@ -22,12 +23,15 @@
     let {
         track,
         size = 'default',
-        class: className
+        class: className,
+        actions
     }: {
         track: TrackInfo
         /** `lg` for the track that is playing, `default` for lists. */
         size?: 'default' | 'lg'
         class?: string
+        /** Buttons for the track, shown before the link to Spotify. */
+        actions?: Snippet
     } = $props()
 
     const artists = $derived(
@@ -60,6 +64,7 @@
             <p class="truncate text-sm text-muted-foreground">{track.album}</p>
         {/if}
     </div>
+    {@render actions?.()}
     <Button
         href={track.spotifyUrl}
         target="_blank"

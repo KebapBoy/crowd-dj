@@ -42,7 +42,9 @@ Every participant has a **pool**: tracks they would like to hear, kept across se
 - in the **Spotify app**, by adding tracks to an **inbox playlist**: a collaborative playlist of the host account. crowd-dj reads it with the host's token and assigns each track to a profile through `added_by` (a participant links their Spotify profile once by pasting their profile link). Every host account has a **permanent inbox**; a host can also create a **session inbox** when starting a session (with its own invite link, made in the Spotify app and pasted into crowd-dj). A pool is the union of both.
 - in **crowd-dj**: search (tracks, albums, artists → albums → tracks) and pasting track links. In the Spotify desktop app, selecting all tracks of a playlist (Ctrl+A) and copying them (Ctrl+C) gives a list of track links, which is how a whole playlist gets in.
 
-A **wish** is a concrete track someone wants to hear soon.
+Search and pasted links are in the session, since they use the host's token; "My profile" shows the pool and removes tracks from it. A track added again counts as newly added.
+
+A **wish** is a concrete track someone wants to hear soon. Each track can be wished once per session. Open wishes can be taken back (they then count for no limit); reordering them comes later.
 
 ### Picking the next track
 
@@ -58,7 +60,7 @@ No track plays twice in a session.
 
 - Open wishes per person at a time.
 - Wishes per person per session.
-- Pool size per person. When someone's inbox tracks exceed it, crowd-dj **removes their oldest extra tracks from the playlist**.
+- Pool size per person. Pools outlive sessions, so in a session with a limit only the person's **newest** tracks count for picking; adding is never refused and older tracks are kept. When someone's inbox tracks exceed it, crowd-dj **removes their oldest extra tracks from the playlist**.
 
 ## In a session
 
@@ -74,8 +76,8 @@ No track plays twice in a session.
 - One container: SvelteKit (adapter-node), SQLite through Drizzle and the libsql client, live updates with server-sent events.
 - **Session engine** (server side, one per active session): polls `GET /me/player` of the playing account (the host's player, else the host) every 2 to 5 seconds. About 15 seconds before the current track ends it picks the next one by the session's mode and sends it with `POST /me/player/queue`; on a track change it marks the track as played, resets votes and notifies everyone. Skip: `POST /me/player/next`. No active device: tell the host and offer the devices from `GET /me/player/devices` (transfer playback). Exactly one track of crowd-dj's queue is in Spotify's queue at a time.
 - **Inbox sync:** polls the inbox playlists every 30 to 60 seconds, using `snapshot_id` to skip unchanged ones.
-- **Search and links** use the host account's token. Tracks are cached in the database.
-- **Data model (rough):** `spotify_account` (hosts and their players via `player_of`, encrypted tokens, sign-in time for the 6-month expiry), `profiles` (name, cookie token, optional Spotify user ID), `sessions` (host account, settings, join code, state), `session_members`, `pool_items`, `wishes`, `plays`, `skip_votes`, `tracks` (cache), `setting` (instance settings), `login` (browsers signed in with Spotify; the cookie holds a random token, the table its hash).
+- **Search and links** use the host account's token: one search request returns up to 10 tracks, albums and artists; an artist's albums come 10 at a time, an album with its tracks in one request (up to 50 tracks, a second page up to 100). Tracks from results and lookups are cached in the database, IDs Spotify did not know and search results in memory for an hour and 10 minutes. Calls to Spotify that participants cause are limited per minute for each participant (100), each session (150, since profiles are free to make) and the instance (300); cached answers cost nothing. After a 429 every call waits for its `Retry-After`, since Spotify's limit counts per app.
+- **Data model (rough):** `spotify_account` (hosts and their players via `player_of`, encrypted tokens, sign-in time for the 6-month expiry), `profiles` (name, cookie token, optional Spotify user ID), `sessions` (host account, settings, join code, state), `session_members`, `pool_item` (profile, track, when added), `wish` (session, profile, track, when played; unique per session and track), `plays`, `skip_votes`, `track` (cache), `setting` (instance settings), `login` (browsers signed in with Spotify; the cookie holds a random token, the table its hash).
 - **Configuration:** see `.env.example`. Stored Spotify tokens are encrypted with `APP_SECRET` (AES-256-GCM). One sign-in asks for every scope crowd-dj will need (playback state and control, private and collaborative playlists), so hosts consent once.
 - **Quota:** poll only while sessions are active; cache tracks.
 - **Languages:** English and German (Paraglide, `messages/`); the browser's language, or the one picked in the app.

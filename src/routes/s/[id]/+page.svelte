@@ -6,16 +6,22 @@
     import { toast } from 'svelte-sonner'
     import { enhance } from '$app/forms'
     import { invalidateAll } from '$app/navigation'
+    import CatalogSearch from '#lib/components/catalog-search.svelte'
     import NameForm from '#lib/components/name-form.svelte'
+    import PoolList from '#lib/components/pool-list.svelte'
     import SessionSettings from '#lib/components/session-settings.svelte'
     import ShareLink from '#lib/components/share-link.svelte'
     import StatusBadge from '#lib/components/status-badge.svelte'
+    import TrackActions from '#lib/components/track-actions.svelte'
+    import WishList from '#lib/components/wish-list.svelte'
     import * as AlertDialog from '#lib/components/ui/alert-dialog/index.js'
     import * as Avatar from '#lib/components/ui/avatar/index.js'
     import { Button } from '#lib/components/ui/button/index.js'
     import * as Card from '#lib/components/ui/card/index.js'
     import * as Dialog from '#lib/components/ui/dialog/index.js'
+    import * as Tabs from '#lib/components/ui/tabs/index.js'
     import { m } from '#lib/paraglide/messages.js'
+    import type { TrackView } from '#lib/server/catalog.ts'
     import type { PageProps } from './$types'
 
     let { data, form }: PageProps = $props()
@@ -23,9 +29,14 @@
     const HEARTBEAT_MS = 5 * 60 * 1000
 
     let endOpen = $state(false)
+    let tab = $state('search')
     let busy = $state(false)
 
     const title = $derived(m.session_title({ host: data.session.hostName }))
+    const poolIds = $derived(new Set(data.pool.map((entry) => entry.track.id)))
+    const wishedIds = $derived(new Set(data.wishes.map((wish) => wish.track.id)))
+    const openWishes = $derived(data.wishes.filter((wish) => !wish.playedAt).length)
+    const canWish = $derived(data.session.mode !== 'pool_only')
 
     /** First character, whole even when it is an emoji. */
     const initial = (name: string) => (Array.from(name)[0] ?? '').toUpperCase()
@@ -39,6 +50,20 @@
         return () => clearInterval(timer)
     })
 </script>
+
+{#snippet trackActions(track: TrackView)}
+    <TrackActions
+        id={track.id}
+        title={track.title}
+        inPool={poolIds.has(track.id)}
+        wished={wishedIds.has(track.id)}
+        {canWish}
+    />
+{/snippet}
+
+{#snippet note(text: string)}
+    <p class="text-sm text-muted-foreground">{text}</p>
+{/snippet}
 
 <svelte:head>
     <title>{title} · {m.app_name()}</title>
@@ -100,6 +125,71 @@
             </Card.Content>
         </Card.Root>
     {:else}
+        <Card.Root>
+            <Card.Header>
+                <Card.Title><h2>{m.music_heading()}</h2></Card.Title>
+            </Card.Header>
+            <Card.Content>
+                <Tabs.Root bind:value={tab} class="gap-4">
+                    <Tabs.List
+                        class="w-full group-data-horizontal/tabs:h-11 sm:group-data-horizontal/tabs:h-8"
+                    >
+                        <Tabs.Trigger value="search">{m.search()}</Tabs.Trigger>
+                        <Tabs.Trigger value="wishes">
+                            {m.wishes_tab({ count: openWishes })}
+                        </Tabs.Trigger>
+                        <Tabs.Trigger value="pool">
+                            {m.pool_tab({ count: data.pool.length })}
+                        </Tabs.Trigger>
+                    </Tabs.List>
+                    <Tabs.Content value="search">
+                        <CatalogSearch sessionId={data.session.id} {trackActions} />
+                    </Tabs.Content>
+                    <Tabs.Content value="wishes" class="flex flex-col gap-4">
+                        {#if !canWish}
+                            {@render note(m.wish_mode_pool_only())}
+                        {:else}
+                            {@render note(m.wishes_intro())}
+                            {#if data.session.maxOpenWishes !== null}
+                                {@render note(
+                                    m.wishes_open_of({
+                                        count: openWishes,
+                                        max: data.session.maxOpenWishes
+                                    })
+                                )}
+                            {/if}
+                            {#if data.session.maxSessionWishes !== null}
+                                {@render note(
+                                    m.wishes_session_of({
+                                        count: data.wishes.length,
+                                        max: data.session.maxSessionWishes
+                                    })
+                                )}
+                            {/if}
+                        {/if}
+                        <WishList wishes={data.wishes} />
+                    </Tabs.Content>
+                    <Tabs.Content value="pool" class="flex flex-col gap-4">
+                        {@render note(
+                            data.session.mode === 'wishes_only'
+                                ? m.pool_mode_wishes_only()
+                                : m.pool_intro()
+                        )}
+                        {#if data.session.maxPoolSize !== null && data.session.mode !== 'wishes_only'}
+                            {@render note(m.pool_limit({ count: data.session.maxPoolSize }))}
+                        {/if}
+                        <PoolList
+                            pool={data.pool}
+                            limit={data.session.mode === 'wishes_only'
+                                ? null
+                                : data.session.maxPoolSize}
+                            {trackActions}
+                        />
+                    </Tabs.Content>
+                </Tabs.Root>
+            </Card.Content>
+        </Card.Root>
+
         <Card.Root>
             <Card.Header>
                 <Card.Title>

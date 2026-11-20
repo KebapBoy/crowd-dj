@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm'
 import {
+    index,
     integer,
     primaryKey,
     sqliteTable,
@@ -118,6 +119,67 @@ export const sessionMember = sqliteTable(
     (table) => [primaryKey({ columns: [table.sessionId, table.profileId] })]
 )
 
+/**
+ * Spotify tracks crowd-dj has seen in search results, albums or pasted links. There is no batch
+ * lookup any more, so each track is looked up once and kept.
+ */
+export const track = sqliteTable('track', {
+    /** Spotify track ID */
+    id: text('id').primaryKey(),
+    title: text('title').notNull(),
+    artists: text('artists', { mode: 'json' }).$type<string[]>().notNull(),
+    album: text('album').notNull(),
+    coverUrl: text('cover_url'),
+    durationMs: integer('duration_ms').notNull(),
+    fetchedAt: integer('fetched_at', { mode: 'timestamp_ms' }).notNull()
+})
+
+/**
+ * A track in a participant's pool, kept across sessions. A session's pool limit counts the most
+ * recently added tracks.
+ */
+export const poolItem = sqliteTable(
+    'pool_item',
+    {
+        profileId: text('profile_id')
+            .notNull()
+            .references(() => profile.id, { onDelete: 'cascade' }),
+        trackId: text('track_id')
+            .notNull()
+            .references(() => track.id),
+        addedAt: integer('added_at', { mode: 'timestamp_ms' }).notNull()
+    },
+    (table) => [
+        primaryKey({ columns: [table.profileId, table.trackId] }),
+        index('pool_item_newest').on(table.profileId, table.addedAt)
+    ]
+)
+
+/** A track someone wants to hear soon in a session. Each track can be wished once per session. */
+export const wish = sqliteTable(
+    'wish',
+    {
+        id: text('id').primaryKey(),
+        sessionId: text('session_id')
+            .notNull()
+            .references(() => session.id, { onDelete: 'cascade' }),
+        profileId: text('profile_id')
+            .notNull()
+            .references(() => profile.id, { onDelete: 'cascade' }),
+        trackId: text('track_id')
+            .notNull()
+            .references(() => track.id),
+        createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+        /** Set when the track was played; until then the wish is open. */
+        playedAt: integer('played_at', { mode: 'timestamp_ms' })
+    },
+    (table) => [
+        uniqueIndex('wish_once_per_session').on(table.sessionId, table.trackId),
+        index('wish_of_profile').on(table.sessionId, table.profileId, table.createdAt)
+    ]
+)
+
 export type Profile = typeof profile.$inferSelect
 export type Session = typeof session.$inferSelect
 export type SessionMode = Session['mode']
+export type Track = typeof track.$inferSelect

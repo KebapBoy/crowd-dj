@@ -2,7 +2,7 @@
 
 A shared music queue for a room full of people. Someone starts a session, everyone joins with a link or QR code and adds music, and crowd-dj plays it **in turns** through one Spotify account on the room's speaker. Participants do not need a Spotify account.
 
-> **Status:** early development. Working so far: Spotify sign-in for hosts and the "My account" page (optional player account, token expiry), participant profiles, and sessions with join link, QR code and settings. Nothing plays yet: music (pools, wishes, search) and the engine that plays it come next. What it will do and why is in [docs/concept.md](docs/concept.md).
+> **Status:** early development. Working so far: Spotify sign-in for hosts and the "My account" page (optional player account, token expiry), participant profiles, sessions with join link, QR code and settings, and music: search, pasted links, wishes and pools with the host's limits. Nothing plays yet: the engine that plays it and the inbox playlists come next. What it will do and why is in [docs/concept.md](docs/concept.md).
 
 ## Features (planned)
 
@@ -34,6 +34,15 @@ The database is created and migrated when the server starts.
 - **Join:** everyone on the session page can show its link and QR code (**Invite**). Whoever opens it picks a name once and is in; no sign-in.
 - **Settings** (host only, any time): how the next track is picked, anonymous, limits per person, skipping own tracks, skip voting.
 - **End:** the host ends it, or it ends by itself after 30 minutes without anyone opening it. Then its link shows "This session has ended".
+
+### Music
+
+Everyone in a session finds music under **Music → Search**: tracks, albums and artists (an artist opens their albums, an album its tracks), looked up through the host's Spotify account. Pasting links works too: in the Spotify desktop app, select tracks (Ctrl+A for a whole playlist), copy them (Ctrl+C) and paste them into the search field (up to 100 at a time); an album link opens the album. Each track has a menu:
+
+- **Wish:** a track to hear soon in this session. Each track can be wished once per session; open wishes can be taken back (**Wishes** tab). Not offered when the session plays pools only.
+- **Add to pool:** tracks the person likes, kept in their profile for every later session (**Pool** tab, and on **My profile**). Adding a track again makes it the newest. Albums and pasted links can be added at once.
+
+The host's limits per person apply: open wishes at a time and wishes per session refuse further wishes; the pool limit counts only the newest tracks of a pool in that session, the older ones stay but do not count. To spare the Spotify quota the hosts share, tracks are looked up once and kept, and calls to Spotify are limited per minute: 100 for each participant, 150 for a session, 300 for the whole instance (cached answers are free). Albums show up to 100 tracks.
 
 ### Profiles
 

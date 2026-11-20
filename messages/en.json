@@ -131,5 +131,108 @@
     "session_end": "End session",
     "session_end_title": "End the session?",
     "session_end_hint": "Ends the session for everyone; the join link stops working. Pools are kept.",
-    "session_ended_toast": "Session ended"
+    "session_ended_toast": "Session ended",
+    "back": "Back",
+    "music_heading": "Music",
+    "search": "Search",
+    "search_label": "Search tracks, albums and artists",
+    "search_placeholder": "Track, album, artist or links",
+    "search_hint": "Search, or paste links to tracks or an album. In the Spotify desktop app, select tracks (Ctrl+A for a whole playlist) and copy them (Ctrl+C).",
+    "search_too_long": "Search for at most {max} characters.",
+    "search_nothing": "Nothing found.",
+    "search_tracks": "Tracks",
+    "search_artists": "Artists",
+    "search_albums": "Albums",
+    "search_more": "More albums",
+    "links_found": [
+        {
+            "declarations": ["input count", "local countPlural = count: plural"],
+            "selectors": ["countPlural"],
+            "match": {
+                "countPlural=one": "1 track from your links",
+                "countPlural=*": "{count} tracks from your links"
+            }
+        }
+    ],
+    "links_dropped": [
+        {
+            "declarations": ["input count", "local countPlural = count: plural"],
+            "selectors": ["countPlural"],
+            "match": {
+                "countPlural=one": "1 more link was left out: at most {max} at a time.",
+                "countPlural=*": "{count} more links were left out: at most {max} at a time."
+            }
+        }
+    ],
+    "catalog_too_many": "Too many searches at once. Wait a minute and try again.",
+    "catalog_host_signin": "The host has to sign in with Spotify again before anything can be searched.",
+    "catalog_busy": "Spotify is busy right now. Try again in a moment.",
+    "catalog_failed": "Spotify could not be reached. Please try again.",
+    "catalog_not_found": "Spotify does not know this.",
+    "track_actions": "Wish or add to pool: {title}",
+    "wishes_tab": "Wishes ({count})",
+    "wishes_intro": "Tracks you want to hear soon, in this session. They play in turns with the others.",
+    "wishes_open_of": "Open wishes: {count} of {max}",
+    "wishes_session_of": "Wishes in this session: {count} of {max}",
+    "wish_add": "Wish",
+    "wish_done": "Wished",
+    "wish_added": "Wished",
+    "wish_none": "No wishes yet. Search for a track and wish it.",
+    "wish_played": "played",
+    "wish_withdraw": "Take back the wish: {title}",
+    "wish_withdrawn": "Wish taken back",
+    "wish_mode_pool_only": "Only pools play in this session; wishes are not taken.",
+    "wish_open_limit": "You have as many open wishes as this session allows. Wait until one has played.",
+    "wish_session_limit": "You have made as many wishes as this session allows.",
+    "wish_taken": "This track has already been wished in this session.",
+    "pool_tab": "Pool ({count})",
+    "pool_intro": "Tracks you like. When it is your turn and you have no open wish, one of them plays at random. Your pool stays with your profile for later sessions.",
+    "pool_mode_wishes_only": "Only wishes play in this session. Your pool stays with your profile for later sessions.",
+    "pool_limit": [
+        {
+            "declarations": ["input count", "local countPlural = count: plural"],
+            "selectors": ["countPlural"],
+            "match": {
+                "countPlural=one": "In this session only your newest track counts.",
+                "countPlural=*": "In this session only your {count} newest tracks count."
+            }
+        }
+    ],
+    "pool_not_counted": [
+        {
+            "declarations": ["input count", "local countPlural = count: plural"],
+            "selectors": ["countPlural"],
+            "match": {
+                "countPlural=one": "Not counted in this session (only the newest counts)",
+                "countPlural=*": "Not counted in this session (only the {count} newest count)"
+            }
+        }
+    ],
+    "pool_empty": "Your pool is empty. Search for tracks or paste links and add them.",
+    "pool_add": "Add to pool",
+    "pool_add_all": [
+        {
+            "declarations": ["input count", "local countPlural = count: plural"],
+            "selectors": ["countPlural"],
+            "match": {
+                "countPlural=one": "Add to pool",
+                "countPlural=*": "Add all {count} to pool"
+            }
+        }
+    ],
+    "pool_added": [
+        {
+            "declarations": ["input count", "local countPlural = count: plural"],
+            "selectors": ["countPlural"],
+            "match": {
+                "countPlural=one": "Added to your pool",
+                "countPlural=*": "{count} tracks added to your pool"
+            }
+        }
+    ],
+    "pool_remove": "Remove from pool",
+    "pool_remove_track": "Remove from pool: {title}",
+    "pool_removed": "Removed from your pool",
+    "profile_pool_intro": "Kept for every session you join. Add tracks in a session.",
+    "wish_withdraw_played": "This wish has been played already."
 }

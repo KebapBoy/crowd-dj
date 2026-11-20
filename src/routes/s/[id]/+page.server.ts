@@ -1,23 +1,21 @@
-import { error, fail, redirect } from '@sveltejs/kit'
-import { accounts, profiles, sessions, setProfileCookie } from '#lib/server/app.ts'
+import { fail, redirect } from '@sveltejs/kit'
+import {
+    accounts,
+    catalog,
+    pools,
+    profiles,
+    sessions,
+    setProfileCookie,
+    wishes
+} from '#lib/server/app.ts'
+import { isSpotifyId } from '#lib/server/catalog.ts'
+import { catalogCall, hostSession, memberSession, openSession } from '#lib/server/guards.ts'
 import { normalizeName } from '#lib/server/profiles.ts'
 import { parseSettings, type SettingsProblem } from '#lib/server/sessions.ts'
+import type { WishProblem } from '#lib/server/wishes.ts'
+import { LINKS_MAX } from '#lib/spotify-links.ts'
 import { m } from '#lib/paraglide/messages.js'
 import type { Actions, PageServerLoad } from './$types'
-
-/** The open session of the link; an unknown or ended one is an error page. */
-async function openSession(id: string) {
-    const session = await sessions.get(id)
-    if (!session) error(404, m.session_not_found())
-    if (session.endedAt) error(410, m.session_ended())
-    return session
-}
-
-async function hostSession(id: string, locals: App.Locals) {
-    const session = await openSession(id)
-    if (session.hostId !== locals.account?.id) error(403, m.error_request())
-    return session
-}
 
 export const load: PageServerLoad = async ({ params, locals, url }) => {
     const session = await openSession(params.id)
@@ -29,18 +27,25 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     const isHost = locals.account?.id === session.hostId
     const name = (account: { displayName: string | null; id: string } | null) =>
         account?.displayName ?? account?.id ?? ''
+    const profile = locals.profile
     return {
         session: {
             id: session.id,
             hostName: name(host),
             playingName: name(player ?? host),
-            joinUrl: `${url.origin}/s/${session.id}`
+            joinUrl: `${url.origin}/s/${session.id}`,
+            mode: session.mode,
+            maxOpenWishes: session.maxOpenWishes,
+            maxSessionWishes: session.maxSessionWishes,
+            maxPoolSize: session.maxPoolSize
         },
         isHost,
-        profile: locals.profile,
+        profile,
         // Suggest the host's Spotify name when they have no profile yet
         suggestedName: isHost ? (host?.displayName ?? '') : '',
-        members: locals.profile ? await sessions.members(session.id) : [],
+        members: profile ? await sessions.members(session.id) : [],
+        wishes: profile ? await wishes.list(session.id, profile.id) : [],
+        pool: profile ? await pools.list(profile.id) : [],
         settings: isHost
             ? {
                   mode: session.mode,
@@ -62,6 +67,20 @@ const settingsMessages: Record<SettingsProblem, () => string> = {
     limit: m.session_settings_limit,
     skipVotes: m.session_settings_votes,
     skipPercent: m.session_settings_percent
+}
+
+const wishMessages: Record<WishProblem, () => string> = {
+    mode: m.wish_mode_pool_only,
+    openLimit: m.wish_open_limit,
+    sessionLimit: m.wish_session_limit,
+    taken: m.wish_taken
+}
+
+/** The track IDs a form sent (`track`, once or more), or null when one is not valid. */
+function trackIds(form: FormData): string[] | null {
+    const ids = form.getAll('track')
+    if (ids.length === 0 || ids.length > LINKS_MAX || !ids.every(isSpotifyId)) return null
+    return [...new Set(ids)]
 }
 
 export const actions: Actions = {
@@ -86,5 +105,43 @@ export const actions: Actions = {
         const session = await hostSession(params.id, locals)
         await sessions.end(session.id)
         redirect(303, '/')
+    },
+    wish: async ({ params, request, locals }) => {
+        const { session, profile } = await memberSession(params.id, locals)
+        const ids = trackIds(await request.formData())
+        if (ids?.length !== 1) return fail(400, { error: m.error_request() })
+        // Usually cached from the search that showed the track
+        const [track] = await catalogCall(session.id, profile.id, (charge) =>
+            catalog.tracks(session.hostId, ids, charge)
+        )
+        if (!track) return fail(404, { error: m.catalog_not_found() })
+        const problem = await wishes.add(session, profile.id, track.id)
+        if (problem) return fail(409, { error: wishMessages[problem]() })
+    },
+    withdraw: async ({ params, request, locals }) => {
+        const { session, profile } = await memberSession(params.id, locals)
+        const wishId = (await request.formData()).get('wish')
+        if (typeof wishId !== 'string') return fail(400, { error: m.error_request() })
+        if (!(await wishes.withdraw(session.id, profile.id, wishId)))
+            return fail(409, { error: m.wish_withdraw_played() })
+    },
+    pool: async ({ params, request, locals }) => {
+        const { session, profile } = await memberSession(params.id, locals)
+        const ids = trackIds(await request.formData())
+        if (!ids) return fail(400, { error: m.error_request() })
+        const tracks = await catalogCall(session.id, profile.id, (charge) =>
+            catalog.tracks(session.hostId, ids, charge)
+        )
+        await pools.add(
+            profile.id,
+            tracks.map((track) => track.id)
+        )
+        return { added: tracks.length }
+    },
+    unpool: async ({ params, request, locals }) => {
+        const { profile } = await memberSession(params.id, locals)
+        const ids = trackIds(await request.formData())
+        if (ids?.length !== 1) return fail(400, { error: m.error_request() })
+        await pools.remove(profile.id, ids[0])
     }
 }

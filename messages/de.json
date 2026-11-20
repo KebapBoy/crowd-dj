@@ -131,5 +131,108 @@
     "session_end": "Session beenden",
     "session_end_title": "Session beenden?",
     "session_end_hint": "Beendet die Session für alle; der Beitritts-Link funktioniert dann nicht mehr. Die Pools bleiben erhalten.",
-    "session_ended_toast": "Session beendet"
+    "session_ended_toast": "Session beendet",
+    "back": "Zurück",
+    "music_heading": "Musik",
+    "search": "Suchen",
+    "search_label": "Titel, Alben und Interpreten suchen",
+    "search_placeholder": "Titel, Album, Interpret oder Links",
+    "search_hint": "Suchen oder Links zu Titeln oder einem Album einfügen. In der Spotify-Desktop-App Titel markieren (Strg+A für eine ganze Playlist) und kopieren (Strg+C).",
+    "search_too_long": "Höchstens {max} Zeichen suchen.",
+    "search_nothing": "Nichts gefunden.",
+    "search_tracks": "Titel",
+    "search_artists": "Interpreten",
+    "search_albums": "Alben",
+    "search_more": "Weitere Alben",
+    "links_found": [
+        {
+            "declarations": ["input count", "local countPlural = count: plural"],
+            "selectors": ["countPlural"],
+            "match": {
+                "countPlural=one": "1 Titel aus deinen Links",
+                "countPlural=*": "{count} Titel aus deinen Links"
+            }
+        }
+    ],
+    "links_dropped": [
+        {
+            "declarations": ["input count", "local countPlural = count: plural"],
+            "selectors": ["countPlural"],
+            "match": {
+                "countPlural=one": "1 weiterer Link wurde ausgelassen: höchstens {max} auf einmal.",
+                "countPlural=*": "{count} weitere Links wurden ausgelassen: höchstens {max} auf einmal."
+            }
+        }
+    ],
+    "catalog_too_many": "Zu viele Suchen auf einmal. Warte eine Minute und versuch es noch einmal.",
+    "catalog_host_signin": "Der Host muss sich erst wieder mit Spotify anmelden, bevor gesucht werden kann.",
+    "catalog_busy": "Spotify ist gerade ausgelastet. Versuch es gleich noch einmal.",
+    "catalog_failed": "Spotify ist nicht erreichbar. Bitte versuch es noch einmal.",
+    "catalog_not_found": "Das kennt Spotify nicht.",
+    "track_actions": "Wünschen oder in den Pool: {title}",
+    "wishes_tab": "Wünsche ({count})",
+    "wishes_intro": "Titel, die du bald hören möchtest, in dieser Session. Sie laufen reihum mit denen der anderen.",
+    "wishes_open_of": "Offene Wünsche: {count} von {max}",
+    "wishes_session_of": "Wünsche in dieser Session: {count} von {max}",
+    "wish_add": "Wünschen",
+    "wish_done": "Gewünscht",
+    "wish_added": "Gewünscht",
+    "wish_none": "Noch keine Wünsche. Such einen Titel und wünsch ihn dir.",
+    "wish_played": "gespielt",
+    "wish_withdraw": "Wunsch zurückziehen: {title}",
+    "wish_withdrawn": "Wunsch zurückgezogen",
+    "wish_mode_pool_only": "In dieser Session laufen nur Pools; Wünsche werden nicht angenommen.",
+    "wish_open_limit": "Du hast so viele offene Wünsche, wie diese Session erlaubt. Warte, bis einer gespielt wurde.",
+    "wish_session_limit": "Du hast so viele Wünsche geäußert, wie diese Session erlaubt.",
+    "wish_taken": "Dieser Titel wurde in dieser Session schon gewünscht.",
+    "pool_tab": "Pool ({count})",
+    "pool_intro": "Titel, die du magst. Bist du dran und hast keinen offenen Wunsch, läuft einer davon per Zufall. Dein Pool bleibt für spätere Sessions in deinem Profil.",
+    "pool_mode_wishes_only": "In dieser Session laufen nur Wünsche. Dein Pool bleibt für spätere Sessions in deinem Profil.",
+    "pool_limit": [
+        {
+            "declarations": ["input count", "local countPlural = count: plural"],
+            "selectors": ["countPlural"],
+            "match": {
+                "countPlural=one": "In dieser Session zählt nur dein neuester Titel.",
+                "countPlural=*": "In dieser Session zählen nur deine {count} neuesten Titel."
+            }
+        }
+    ],
+    "pool_not_counted": [
+        {
+            "declarations": ["input count", "local countPlural = count: plural"],
+            "selectors": ["countPlural"],
+            "match": {
+                "countPlural=one": "Zählt in dieser Session nicht (nur der neueste zählt)",
+                "countPlural=*": "Zählt in dieser Session nicht (nur die {count} neuesten zählen)"
+            }
+        }
+    ],
+    "pool_empty": "Dein Pool ist leer. Such Titel oder füg Links ein und nimm sie auf.",
+    "pool_add": "In den Pool",
+    "pool_add_all": [
+        {
+            "declarations": ["input count", "local countPlural = count: plural"],
+            "selectors": ["countPlural"],
+            "match": {
+                "countPlural=one": "In den Pool",
+                "countPlural=*": "Alle {count} in den Pool"
+            }
+        }
+    ],
+    "pool_added": [
+        {
+            "declarations": ["input count", "local countPlural = count: plural"],
+            "selectors": ["countPlural"],
+            "match": {
+                "countPlural=one": "In deinen Pool aufgenommen",
+                "countPlural=*": "{count} Titel in deinen Pool aufgenommen"
+            }
+        }
+    ],
+    "pool_remove": "Aus dem Pool nehmen",
+    "pool_remove_track": "Aus dem Pool nehmen: {title}",
+    "pool_removed": "Aus deinem Pool genommen",
+    "profile_pool_intro": "Gilt für jede Session, der du beitrittst. Titel nimmst du in einer Session auf.",
+    "wish_withdraw_played": "Dieser Wunsch wurde schon gespielt."
 }
