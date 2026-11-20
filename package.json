@@ -1,6 +1,6 @@
 {
     "name": "crowd-dj",
-    "version": "0.0.0",
+    "version": "0.1.0",
     "description": "A shared, fair music queue for a room full of people, played through one Spotify account",
     "license": "MIT",
     "private": true,

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-20
+
 ### Added
 
 - A browser signed in with Spotify gets its profile without asking for a name: the first name from the Spotify account, else the Spotify username. The name follows the account and is no longer set by hand while signed in, and a signed-in browser cannot switch to another profile through a personal link.
@@ -14,7 +16,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - "Now playing" and "Up next" on the session page, with cover, position and for whom a track plays (in anonymous sessions only "yours"), and live updates: the page updates itself when a track starts, someone wishes, joins or leaves, or the settings change.
 - Leaving a session: a participant's turns end and their open wishes no longer play, until they join it again on purpose (**Join again**). Only participants in a session can wish and change pools there; each can make 60 such changes a minute.
 - Music in sessions: participants search tracks, albums and artists (artist → albums → tracks) through the host's Spotify account, or paste track links copied in the Spotify apps (up to 100 at a time; an album link opens the album, with up to 100 tracks). A track can be wished for the session or added to the person's pool, a whole album or all pasted tracks at once to the pool. Open wishes can be taken back. The host's limits apply: open wishes at a time and wishes per session refuse further wishes, and the pool limit counts only the person's newest tracks in that session. Pools are kept in the profile and shown on "My profile", where tracks can be removed too. Tracks are looked up once and kept, search results, albums and an artist's albums for 10 minutes, and calls to Spotify are limited per minute for each participant, each session and the whole instance, so the Spotify quota the hosts share lasts; after Spotify answers "too many requests", crowd-dj waits as long as it asks.
-
 - Sessions: a signed-in host starts one from the start page (at most one at a time; it plays through the host's player, else their own account). Everyone in it can show its join link and QR code. The host sets how the next track is picked, anonymity, limits per person and skipping (own tracks, voting) at any time, and ends it; it also ends by itself after 30 minutes without anyone opening it, and its link then stops working.
 - Participant profiles without sign-in: a name, kept in a cookie of the browser, asked for when joining a session. "My profile" (`/profile`) changes the name and shows a personal link and QR code to use the profile on another device too (after asking there). New profiles are limited to 30 an hour per address (IPv6: per /64); behind a reverse proxy set `ADDRESS_HEADER` and `XFF_DEPTH` (`deploy/compose.yaml` does) so the visitor's address counts, not the proxy's.
 - New look for all pages, built for phones first: light and dark theme (follows the system until you pick one in the header), a language menu in the header (English, German), confirmation dialogs for disconnecting the player and deleting the account, and a short message after each action. Everything is served by crowd-dj itself; no fonts or scripts are loaded from elsewhere.
