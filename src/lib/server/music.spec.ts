@@ -83,6 +83,31 @@ describe('catalog', () => {
         await catalog.search('host', 'band')
         expect(api.search).toHaveBeenCalledTimes(2)
     })
+
+    it('reuses albums and pages of an artist`s albums for a while and charges only real calls', async () => {
+        const album = { id: ID(50), name: 'Album', artists: ['Band'], coverUrl: null, year: null }
+        api.album.mockResolvedValue({ album, tracks: [spotifyTrack(6)] })
+        api.artistAlbums.mockResolvedValue({ albums: [album], next: null })
+        const charge = vi.fn()
+
+        const first = await catalog.album('host', ID(50), charge)
+        expect(await catalog.album('host', ID(50), charge)).toEqual(first)
+        expect(first?.tracks.map((track) => track.title)).toEqual(['Track 6'])
+        expect(api.album).toHaveBeenCalledTimes(1)
+        await catalog.artistAlbums('host', ID(51), 0, charge)
+        await catalog.artistAlbums('host', ID(51), 0, charge)
+        await catalog.artistAlbums('host', ID(51), 10, charge)
+        expect(api.artistAlbums).toHaveBeenCalledTimes(2)
+        expect(charge.mock.calls).toEqual([[2], [1], [1]])
+
+        // Malformed IDs cost nothing
+        expect(await catalog.album('host', '../me', charge)).toBeNull()
+        expect(charge).toHaveBeenCalledTimes(3)
+
+        now = new Date(now.getTime() + 11 * 60 * 1000)
+        await catalog.album('host', ID(50), charge)
+        expect(api.album).toHaveBeenCalledTimes(2)
+    })
 })
 
 describe('pools and wishes', () => {
