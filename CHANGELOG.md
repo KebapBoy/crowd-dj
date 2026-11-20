@@ -24,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Project skeleton: SvelteKit with adapter-node, SQLite through Drizzle, English and German texts, a start page and `GET /healthz`.
 - Container image and `deploy/compose.yaml` for running behind a reverse proxy.
 - Devcontainer with Node, Claude Code and Docker.
-- Concept in `docs/concept.md`.
+- Documentation: the README for people who use and run crowd-dj (including what it does not do, and what may come), `docs/concept.md` on how it works and why (pools, wishes and the turns in detail), and `AGENTS.md` for working on the code.
 
 ### Changed
 
