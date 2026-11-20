@@ -23,6 +23,26 @@ A shared music queue for a room full of people. Someone starts a session, everyo
 
 How the turns and the pools work in detail, and why crowd-dj is built the way it is, is explained in [docs/concept.md](docs/concept.md).
 
+## crowd-dj or Spotify Jam?
+
+Spotify's own [Jam](https://support.spotify.com/article/jam/) also lets a group fill one queue. It is built into the Spotify app and needs no setup, so for a few friends who all have Spotify it is often the simpler choice. crowd-dj is made for a room where not everyone has Spotify, and where the music should be shared fairly.
+
+**What crowd-dj does that Jam does not:**
+
+- **Anyone can join.** A browser and a name are enough. A Jam guest needs the Spotify app and an account (Free only in the same room, Premium to join from elsewhere).
+- **Fair turns.** Whoever has waited longest for a track of theirs comes next. A Jam has one shared queue, so whoever adds the most gets the most played.
+- **Pools that last.** Your favourite tracks stay with your profile and fill your turns in every session, also when you are not adding anything right now. A Jam fills gaps with Spotify's recommendations.
+- **House rules.** The host sets how wishes and pools mix, limits per person and anonymous sessions. Participants add music, but cannot pause, skip or turn up the volume on the room's speaker.
+- **It keeps going without the host.** The session runs on your server, so the host's phone can stay in their pocket or go home with them. A Jam ends when its host leaves.
+- **Your own installation.** It runs on your server, with your data.
+
+**What Jam does that crowd-dj does not:**
+
+- **No setup.** Every Premium user can start a Jam in the Spotify app. crowd-dj needs a server, a Spotify developer app and allows at most 5 hosts and players.
+- **Listening from elsewhere.** Premium guests hear the Jam on their own devices; crowd-dj plays only in the room.
+- **Guests control the music.** In a Jam, guests can skip and change what plays (unless the host turns it off); crowd-dj has no skipping yet.
+- **Everywhere Spotify is.** Joining by holding phones together, Jams that start by themselves on smart speakers, on TVs and in the car, and recommendations that take the group's taste into account.
+
 ## Using it
 
 ### Joining and profiles
