@@ -41,7 +41,7 @@ These shape every decision below. Sources at the end.
 
 **Player:** a session plays through the host's player if one is connected, else through the host's own account. A player keeps the music out of the host's listening history (e.g. a free place in a family plan) and has to be signed in on the device at the speaker. It is connected through Spotify's account dialog ("Not you?"); an account that signs in on its own (a host) or is another host's player cannot become one, and a player cannot sign in as a host. Swapping or disconnecting a player deletes its stored tokens.
 
-**Participant profiles:** a profile is a name and a random cookie token (the database keeps only its hash). The personal link carries the same token, so it moves the profile to another device; opening it asks before it replaces the profile a device uses, so a link preview or a stray scan changes nothing. The link stays valid as long as the profile exists.
+**Participant profiles:** a profile is a name and a random cookie token (the database keeps only its hash). The personal link carries the same token, so it moves the profile to another device; opening it asks before it replaces the profile a device uses, so a link preview or a stray scan changes nothing. The link stays valid as long as the profile exists. A browser signed in with Spotify (a host) gets a profile without asking, named after the account: the first word of the Spotify display name, else the Spotify username. The name follows the account (the display name is stored at every sign-in) and cannot be changed by hand while signed in, nor can such a browser switch to another profile through a personal link; after signing out the profile stays and can be renamed. Making it counts towards the limit of new profiles per address.
 
 ## Pools and wishes
 
@@ -81,7 +81,7 @@ An example in "wishes before pools", with Ana, Ben and Cem joined in that order 
 
 ## In a session
 
-- **Joining:** the session's random id is its join link (and QR code, which everyone in the session can show). A visitor without a profile picks a name and is in. Only members may wish, change pools in the session and get live updates.
+- **Joining:** the session's random id is its join link (and QR code, which everyone in the session can show). A visitor without a profile picks a name and is in; a signed-in host already has one. Only members may wish, change pools in the session and get live updates.
 - **Leaving:** ends the person's turns; their open wishes no longer play, their pool stays. It is kept (`left_at`), so opening the session again does not join it again by itself, only **Join again** does.
 - **Anonymous sessions:** nobody sees whom a track plays for, not even the host; everyone sees "yours" on their own tracks. The list of participants stays visible.
 - **Settings:** the mode, anonymity and the limits can be changed by the host at any time; the next pick uses them. The session also stores skip settings (skipping own tracks, skip voting with thresholds); crowd-dj does not skip tracks, so they have no effect.

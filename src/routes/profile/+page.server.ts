@@ -10,6 +10,8 @@ export const load: PageServerLoad = async ({ locals, cookies, url }) => {
     const token = cookies.get(PROFILE_COOKIE)
     return {
         profile: locals.profile,
+        // Signed in with Spotify: the name follows the account (hooks.server.ts)
+        nameFromSpotify: locals.account !== null,
         // The cookie's token moves the profile to another device
         deviceLink: locals.profile && token ? `${url.origin}/p/${token}` : null,
         pool: locals.profile ? await pools.list(locals.profile.id) : []
@@ -18,6 +20,7 @@ export const load: PageServerLoad = async ({ locals, cookies, url }) => {
 
 export const actions: Actions = {
     save: async ({ request, locals, cookies, getClientAddress }) => {
+        if (locals.account) return fail(409, { error: m.error_request() })
         const name = normalizeName((await request.formData()).get('name'))
         if (!name) return fail(400, { invalid: true })
         if (locals.profile) {

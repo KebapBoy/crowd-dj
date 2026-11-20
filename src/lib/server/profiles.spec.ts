@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { migrateDatabase } from './db/migrate'
 import { openDatabase } from './db/open'
-import { createProfiles, normalizeName } from './profiles'
+import { createProfiles, normalizeName, spotifyProfileName } from './profiles'
 
 let profiles: ReturnType<typeof createProfiles>
 
@@ -32,5 +32,24 @@ describe('normalizeName', () => {
         expect(normalizeName('x'.repeat(41))).toBeNull()
         expect(normalizeName(null)).toBeNull()
         expect(normalizeName('\u202Eevil\u200B name')).toBe('evil name')
+    })
+})
+
+describe('spotifyProfileName', () => {
+    it('takes the first name from the display name', () => {
+        expect(spotifyProfileName({ id: 'user1', displayName: '  Alex   Example ' })).toBe('Alex')
+        expect(spotifyProfileName({ id: 'user1', displayName: 'Alex' })).toBe('Alex')
+        expect(spotifyProfileName({ id: 'user1', displayName: `Alex ${'x'.repeat(50)}` })).toBe(
+            'Alex'
+        )
+        expect(spotifyProfileName({ id: 'user1', displayName: 'x'.repeat(50) })).toBe(
+            'x'.repeat(40)
+        )
+    })
+
+    it('falls back to the username without a display name', () => {
+        expect(spotifyProfileName({ id: 'user1', displayName: null })).toBe('user1')
+        expect(spotifyProfileName({ id: 'user1', displayName: ' \u200B ' })).toBe('user1')
+        expect(spotifyProfileName({ id: 'u'.repeat(50), displayName: null })).toBe('u'.repeat(40))
     })
 })

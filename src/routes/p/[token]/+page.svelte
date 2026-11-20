@@ -28,14 +28,16 @@
                         : m.profile_link_question({ name: data.name })}
                 </h2>
             </Card.Title>
-            {#if data.current && !data.same}
+            {#if data.signedIn && !data.same}
+                <Card.Description>{m.profile_link_signed_in()}</Card.Description>
+            {:else if data.current && !data.same}
                 <Card.Description>
                     {m.profile_link_replaces({ name: data.current.name })}
                 </Card.Description>
             {/if}
         </Card.Header>
         <Card.Footer>
-            {#if data.same}
+            {#if data.same || data.signedIn}
                 <Button href={resolve('/profile')} class="h-11 w-full sm:h-8 sm:w-auto">
                     {m.profile_title()}
                 </Button>

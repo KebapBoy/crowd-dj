@@ -149,11 +149,7 @@
                             await update({ reset: false })
                         }}
                 >
-                    <NameForm
-                        name={data.suggestedName}
-                        invalid={form?.invalidName}
-                        submit={m.session_join()}
-                    />
+                    <NameForm invalid={form?.invalidName} submit={m.session_join()} />
                 </form>
             </Card.Content>
         </Card.Root>

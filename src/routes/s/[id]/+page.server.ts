@@ -60,8 +60,6 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
         /** Whether the profile is in the session; false after it left. */
         member,
         playing: await playing.view(session, profile?.id ?? null),
-        // Suggest the host's Spotify name when they have no profile yet
-        suggestedName: isHost ? (host?.displayName ?? '') : '',
         members: member ? await sessions.members(session.id) : [],
         wishes: member && profile ? await wishes.list(session.id, profile.id) : [],
         pool: member && profile ? await pools.list(profile.id) : [],

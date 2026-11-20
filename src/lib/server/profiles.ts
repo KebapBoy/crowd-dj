@@ -16,11 +16,24 @@ export interface ProfileView {
  */
 export function normalizeName(value: unknown): string | null {
     if (typeof value !== 'string') return null
-    const name = value
+    const name = cleanName(value)
+    return name && name.length <= NAME_MAX_LENGTH ? name : null
+}
+
+function cleanName(value: string): string {
+    return value
         .replace(/[\p{Cc}\p{Cf}]/gu, ' ')
         .replace(/\s+/g, ' ')
         .trim()
-    return name && name.length <= NAME_MAX_LENGTH ? name : null
+}
+
+/**
+ * The profile name of someone signed in with Spotify: the first name from their display name, or
+ * their username (the Spotify user ID) when there is no display name; cut to the longest name.
+ */
+export function spotifyProfileName(account: { id: string; displayName: string | null }): string {
+    const firstName = cleanName(account.displayName ?? '').split(' ')[0]
+    return (firstName || cleanName(account.id)).slice(0, NAME_MAX_LENGTH)
 }
 
 export function createProfiles({ db, now = () => new Date() }: { db: Database; now?: () => Date }) {

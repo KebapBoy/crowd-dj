@@ -46,30 +46,37 @@
 
     <Card.Root>
         <Card.Header>
-            <Card.Description>{m.profile_intro()}</Card.Description>
+            {#if data.nameFromSpotify && data.profile}
+                <Card.Title><h2>{data.profile.name}</h2></Card.Title>
+                <Card.Description>{m.profile_name_from_spotify()}</Card.Description>
+            {:else}
+                <Card.Description>{m.profile_intro()}</Card.Description>
+            {/if}
         </Card.Header>
-        <Card.Content>
-            <form
-                method="POST"
-                action="?/save"
-                use:enhance={() => {
-                    const created = !data.profile
-                    return async ({ result, update }) => {
-                        if (result.type === 'success')
-                            toast.success(created ? m.profile_created() : m.profile_renamed())
-                        if (result.type === 'failure' && result.data?.tooManyProfiles)
-                            toast.error(m.profile_too_many())
-                        await update({ reset: false })
-                    }
-                }}
-            >
-                <NameForm
-                    name={data.profile?.name ?? ''}
-                    invalid={form?.invalid}
-                    submit={data.profile ? m.save() : m.profile_create()}
-                />
-            </form>
-        </Card.Content>
+        {#if !data.nameFromSpotify}
+            <Card.Content>
+                <form
+                    method="POST"
+                    action="?/save"
+                    use:enhance={() => {
+                        const created = !data.profile
+                        return async ({ result, update }) => {
+                            if (result.type === 'success')
+                                toast.success(created ? m.profile_created() : m.profile_renamed())
+                            if (result.type === 'failure' && result.data?.tooManyProfiles)
+                                toast.error(m.profile_too_many())
+                            await update({ reset: false })
+                        }
+                    }}
+                >
+                    <NameForm
+                        name={data.profile?.name ?? ''}
+                        invalid={form?.invalid}
+                        submit={data.profile ? m.save() : m.profile_create()}
+                    />
+                </form>
+            </Card.Content>
+        {/if}
     </Card.Root>
 
     {#if data.deviceLink}

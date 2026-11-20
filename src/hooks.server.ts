@@ -6,8 +6,11 @@ import {
     LOGIN_COOKIE,
     PROFILE_COOKIE,
     profiles,
-    sessions
+    sessions,
+    setProfileCookie
 } from '#lib/server/app.ts'
+import { mayCreateProfile } from '#lib/server/guards.ts'
+import { spotifyProfileName } from '#lib/server/profiles.ts'
 import { db } from '#lib/server/db/index.ts'
 import { migrateDatabase } from '#lib/server/db/migrate.ts'
 import { errorSummary } from '#lib/server/errors.ts'
@@ -51,11 +54,27 @@ const handleLogin: Handle = async ({ event, resolve }) => {
     return resolve(event)
 }
 
-/** The participant profile of this browser. */
+/**
+ * The participant profile of this browser. A browser signed in with Spotify always has one, named
+ * after the account (`spotifyProfileName`); it is made here (within the limit of new profiles per
+ * address) and follows the Spotify name.
+ */
 const handleProfile: Handle = async ({ event, resolve }) => {
-    const token = event.cookies.get(PROFILE_COOKIE)
-    event.locals.profile = token ? await profiles.forToken(token) : null
-    if (token && !event.locals.profile) event.cookies.delete(PROFILE_COOKIE, { path: '/' })
+    const { cookies, locals } = event
+    const token = cookies.get(PROFILE_COOKIE)
+    locals.profile = token ? await profiles.forToken(token) : null
+    if (token && !locals.profile) cookies.delete(PROFILE_COOKIE, { path: '/' })
+    if (locals.account) {
+        const name = spotifyProfileName(locals.account)
+        if (!locals.profile && mayCreateProfile(event.getClientAddress)) {
+            const created = await profiles.create(name)
+            setProfileCookie(cookies, created.token)
+            locals.profile = created.profile
+        } else if (locals.profile && locals.profile.name !== name) {
+            await profiles.rename(locals.profile.id, name)
+            locals.profile = { ...locals.profile, name }
+        }
+    }
     return resolve(event)
 }
 

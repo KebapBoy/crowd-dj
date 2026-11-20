@@ -10,12 +10,19 @@ import type { Actions, PageServerLoad } from './$types'
 export const load: PageServerLoad = async ({ params, locals }) => {
     const profile = await profiles.forToken(params.token)
     if (!profile) error(404, m.profile_link_invalid())
-    return { name: profile.name, current: locals.profile, same: locals.profile?.id === profile.id }
+    return {
+        name: profile.name,
+        current: locals.profile,
+        same: locals.profile?.id === profile.id,
+        // A browser signed in with Spotify keeps the profile named after the account
+        signedIn: locals.account !== null
+    }
 }
 
 export const actions: Actions = {
-    default: async ({ params, cookies }) => {
+    default: async ({ params, cookies, locals }) => {
         if (!(await profiles.forToken(params.token))) error(404, m.profile_link_invalid())
+        if (locals.account) error(409, m.profile_link_signed_in())
         setProfileCookie(cookies, params.token)
         redirect(303, '/profile')
     }

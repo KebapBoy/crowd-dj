@@ -48,7 +48,7 @@ Spotify's own [Jam](https://support.spotify.com/article/jam/) also lets a group 
 ### Joining and profiles
 
 - Open the join link or scan the QR code, pick a name, done. Everyone in a session can show the link and QR code to others (**Invite**).
-- Your name is kept in your browser (**My profile**). The personal link and QR code there let you use the same profile on another device, for example your laptop. Anyone with that link can act as you, so only use it for your own devices.
+- Your name is kept in your browser (**My profile**). Signed in with Spotify (as a host), you do not pick a name: your profile takes your first name from Spotify, or your Spotify username if there is none. The personal link and QR code there let you use the same profile on another device, for example your laptop. Anyone with that link can act as you, so only use it for your own devices.
 - **Leave** (under **Participants**) takes you out of the turns; your open wishes no longer play, your pool stays. **Join again** brings you back.
 
 ### Music
