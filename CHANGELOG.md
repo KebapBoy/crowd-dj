@@ -22,3 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Container image and `deploy/compose.yaml` for running behind a reverse proxy.
 - Devcontainer with Node, Claude Code and Docker.
 - Concept in `docs/concept.md`.
+
+### Fixed
+
+- Pages and requests that arrive while a host connects their player no longer fail.

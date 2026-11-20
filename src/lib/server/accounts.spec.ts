@@ -125,6 +125,16 @@ describe('accounts', () => {
         expect(await accounts.playerProblem('host', 'player')).toBeNull()
     })
 
+    it('keeps answering other queries while a player is connected', async () => {
+        await accounts.saveAuthorization(tokens('host'), profile('host'))
+        const [, host] = await Promise.all([
+            accounts.connectPlayer('host', tokens('player'), profile('player')),
+            accounts.get('host')
+        ])
+        expect(host?.id).toBe('host')
+        expect((await accounts.player('host'))?.id).toBe('player')
+    })
+
     it('deletes a host with its player and sign-ins', async () => {
         await accounts.saveAuthorization(tokens('host'), profile('host'))
         await accounts.connectPlayer('host', tokens('player'), profile('player'))

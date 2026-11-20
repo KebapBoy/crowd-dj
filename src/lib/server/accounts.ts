@@ -101,12 +101,8 @@ export function createAccounts({ db, key, client, now = () => new Date() }: Acco
         }
     }
 
-    async function upsert(
-        database: Pick<Database, 'insert'>,
-        tokens: TokenResponse,
-        profile: SpotifyProfile,
-        playerOf?: string
-    ) {
+    /** The statement that stores an account's tokens; await it alone or pass it to a batch. */
+    function upsert(tokens: TokenResponse, profile: SpotifyProfile, playerOf?: string) {
         if (!tokens.refreshToken) throw new Error('Spotify sent no refresh token')
         const at = now()
         const values = {
@@ -120,7 +116,7 @@ export function createAccounts({ db, key, client, now = () => new Date() }: Acco
             revokedAt: null,
             ...(playerOf && { playerOf })
         }
-        await database
+        return db
             .insert(spotifyAccount)
             .values({ id: profile.id, createdAt: at, ...values })
             .onConflictDoUpdate({ target: spotifyAccount.id, set: values })
@@ -162,7 +158,7 @@ export function createAccounts({ db, key, client, now = () => new Date() }: Acco
             profile?: SpotifyProfile
         ): Promise<SpotifyProfile> {
             profile ??= await getProfile(tokens.accessToken, client.fetch)
-            await upsert(db, tokens, profile)
+            await upsert(tokens, profile)
             return profile
         },
 
@@ -172,14 +168,16 @@ export function createAccounts({ db, key, client, now = () => new Date() }: Acco
          * is deleted with its tokens. Check `playerProblem` first.
          */
         async connectPlayer(hostId: string, tokens: TokenResponse, profile: SpotifyProfile) {
-            await db.transaction(async (tx) => {
-                await tx
+            // A batch is atomic like a transaction, but does not hold the database's only
+            // connection across awaits, which would make every parallel query fail
+            await db.batch([
+                db
                     .delete(spotifyAccount)
                     .where(
                         and(eq(spotifyAccount.playerOf, hostId), ne(spotifyAccount.id, profile.id))
-                    )
-                await upsert(tx, tokens, profile, hostId)
-            })
+                    ),
+                upsert(tokens, profile, hostId)
+            ])
         },
 
         /** A valid access token for the account, refreshed when needed. */
