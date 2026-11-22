@@ -1,14 +1,13 @@
-# Not part of the build context
-node_modules
-.svelte-kit
-build
+# Allowlist: only what the image needs goes into the build context
+*
+!package.json
+!package-lock.json
+!.npmrc
+!vite.config.ts
+!tsconfig.json
+!project.inlang/settings.json
+!messages/
+!drizzle/
+!src/
+!static/
 src/lib/paraglide
-project.inlang/cache
-.env
-.env.*
-*.db
-.git
-.devcontainer
-.vscode
-deploy
-docs

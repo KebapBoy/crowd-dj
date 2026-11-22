@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `/healthz` answers with JSON that names the running version (`{"status":"ok","version":"x.y.z"}`) instead of a plain `ok`.
+- The image runs as user `crowd-dj` (same UID 1000 as before, so `/data` needs no change), carries OCI labels and gets a start period for its health check. `deploy/compose.yaml` runs it hardened: read-only file system (state only in `/data`, scratch in `/tmp`), no capabilities, no gaining privileges.
 - crowd-dj asks Spotify only for what it needs. Signing in as a host only reads your profile; only the account that plays your sessions allows crowd-dj to read and control its playback, and nothing asks for playlists any more. Without a player, allow your own account to play once on **My account** (**Play through my account**); later sign-ins keep that by themselves. Accounts signed in before keep working as they are.
 
 ## [0.1.0] - 2026-11-20

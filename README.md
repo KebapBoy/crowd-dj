@@ -109,24 +109,25 @@ Ideas that may come next. No promises and no dates, but this is where crowd-dj i
     - **Visitor addresses:** crowd-dj limits new profiles per visitor address, so the proxy has to set or append `X-Forwarded-For` (SWAG, Caddy, Traefik and nginx with `$proxy_add_x_forwarded_for` do), and `XFF_DEPTH` has to match the number of proxies that append to it (the compose file assumes one). Without the header the log says so once, and all visitors share one limit.
 4. Hosts sign in from the start page; on **My account** they let their own account play or connect a player.
 
-The database is created and migrated when the server starts.
+The database is created and migrated when the server starts. `/healthz` answers `{"status":"ok","version":"x.y.z"}` with the running version, for the container's health check and your monitoring.
 
 ### Configuration
 
-| Variable                | Purpose                                                                                                                                      |
-| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ORIGIN`                | Public URL without a trailing slash; the Spotify redirect URI is `<ORIGIN>/auth/callback`                                                    |
-| `DATABASE_URL`          | SQLite database file as a libsql URL (the image sets `file:/data/crowd-dj.db`)                                                               |
-| `SPOTIFY_CLIENT_ID`     | Client ID of the Spotify app                                                                                                                 |
-| `SPOTIFY_CLIENT_SECRET` | Client secret of the Spotify app (secret)                                                                                                    |
-| `APP_SECRET`            | Key for encrypting stored tokens (secret, at least 32 characters; `openssl rand -base64 32`). Changing it makes every account sign in again  |
-| `ADDRESS_HEADER`        | Request header with the visitor's address behind a reverse proxy, used to limit new profiles per address (compose default `X-Forwarded-For`) |
-| `XFF_DEPTH`             | How many proxies append to `X-Forwarded-For` (compose default `1`)                                                                           |
-| `TZ`                    | Time zone                                                                                                                                    |
+| Variable                 | Purpose                                                                                                                                      |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ORIGIN`                 | Public URL without a trailing slash; the Spotify redirect URI is `<ORIGIN>/auth/callback`                                                    |
+| `DATABASE_URL`           | SQLite database file as a libsql URL (the image sets `file:/data/crowd-dj.db`)                                                               |
+| `SPOTIFY_CLIENT_ID`      | Client ID of the Spotify app                                                                                                                 |
+| `SPOTIFY_CLIENT_SECRET`  | Client secret of the Spotify app (secret)                                                                                                    |
+| `APP_SECRET`             | Key for encrypting stored tokens (secret, at least 32 characters; `openssl rand -base64 32`). Changing it makes every account sign in again  |
+| `ADDRESS_HEADER`         | Request header with the visitor's address behind a reverse proxy, used to limit new profiles per address (compose default `X-Forwarded-For`) |
+| `XFF_DEPTH`              | How many proxies append to `X-Forwarded-For` (compose default `1`)                                                                           |
+| `CROWD_DJ_PROXY_NETWORK` | Docker network of the reverse proxy (`deploy/compose.yaml` only, default `proxy`)                                                            |
+| `TZ`                     | Time zone                                                                                                                                    |
 
 ## Contributing
 
-How to work on the code is in [AGENTS.md](AGENTS.md).
+How to work on the code is in [AGENTS.md](AGENTS.md). To try the image locally, run `just demo` (or `docker compose up --build`) and open http://127.0.0.1:8080; signing in needs your own Spotify app (see [compose.yaml](compose.yaml)).
 
 ## License
 

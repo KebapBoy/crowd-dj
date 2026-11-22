@@ -1,45 +1,63 @@
-// Devcontainer with Node 26, git and Claude Code (stage "dev" of the Dockerfile), plus Docker
-// (docker-in-docker) for building the image.
-// Claude Code keeps its settings and sign-in in the volume at ~/.claude, so they survive rebuilds;
-// your user-level ~/.claude/CLAUDE.md from the host is mounted in read-only.
+// Devcontainer: stage "dev" of the Dockerfile (Node 26), the dev-kit feature (Claude Code with the
+// shared configuration, git, just, dev-kit) with Docker inside for just demo. Docker needs the
+// runtime sysbox-runc (Sysbox on the host): it keeps the container unprivileged.
 // .devcontainer/serve.sh runs the dev server with hot reload on port 5173. Open it as
 // http://127.0.0.1:5173 (not localhost): that is the redirect URI Spotify accepts for development.
+//
+// The host does not use this file or the Dockerfile from the repository: copy both to
+// ~/.config/dev-kit/crowd-dj/.devcontainer/ and open ~/.config/dev-kit/crowd-dj in VS Code
+// ("Reopen in Container"). The code lives in the Docker volume crowd-dj-workspace, never on the
+// host, and code in the container cannot change how the host builds and starts it. Take changes to
+// the two files over by hand, after reading them (dev-kit-host diff crowd-dj shows them).
 {
     "name": "crowd-dj",
+    // Runs on the host before the container starts (dev-kit-host from the dev-kit repository):
+    // copies your ~/.claude/CLAUDE.md to ~/.config/dev-kit/, clones the repository into the volume
+    // crowd-dj-workspace the first time, and warns if this file or the Dockerfile differs from the
+    // repository's
+    "initializeCommand": "~/.config/dev-kit/bin/dev-kit-host prepare crowd-dj git@github.com:KebapBoy/crowd-dj.git",
+    // The host's copy of the Dockerfile next to this file; the stage dev needs nothing else
     "build": {
-        "dockerfile": "../Dockerfile",
-        "context": "..",
+        "dockerfile": "Dockerfile",
+        "context": ".",
         "target": "dev"
     },
-    // The container runs as root so docker-in-docker can start dockerd (the image has no sudo);
-    // VS Code, its terminals and Claude Code run as node.
-    // Runs on the host before the container starts: copies your user-level ~/.claude/CLAUDE.md (or an
-    // empty file if there is none) to .devcontainer/host/, which is mounted read-only as Claude Code's
-    // CLAUDE.md in the container. cp overwrites in place, so the mount picks up changes on every start.
-    "initializeCommand": "mkdir -p .devcontainer/host && { cp ~/.claude/CLAUDE.md .devcontainer/host/CLAUDE.md 2>/dev/null || : > .devcontainer/host/CLAUDE.md; }",
-    "containerUser": "root",
-    "remoteUser": "node",
+    "workspaceMount": "source=crowd-dj-workspace,target=/workspaces/crowd-dj,type=volume",
+    "workspaceFolder": "/workspaces/crowd-dj",
+    "remoteUser": "dev",
+    "runArgs": ["--runtime=sysbox-runc"],
     "features": {
-        "ghcr.io/devcontainers/features/docker-in-docker:2": { "moby": false }
+        "ghcr.io/kebapboy/dev-kit/dev-kit:1": { "docker": true }
     },
+    // From the host, read-only: your CLAUDE.md, the managed Claude Code settings and this
+    // repository's folder etc next to .devcontainer (deploy settings, deploy key, host keys)
     "mounts": [
-        "source=crowd-dj-claude-${devcontainerId},target=/home/node/.claude,type=volume",
-        "source=${localWorkspaceFolder}/.devcontainer/host/CLAUDE.md,target=/home/node/.claude/CLAUDE.md,type=bind,readonly"
+        "source=${localEnv:HOME}/.config/dev-kit/CLAUDE.md,target=/var/lib/dev-kit/claude/CLAUDE.md,type=bind,readonly",
+        "source=${localEnv:HOME}/.config/dev-kit/claude-code,target=/etc/claude-code,type=bind,readonly",
+        "source=${localWorkspaceFolder}/etc,target=/etc/dev-kit,type=bind,readonly"
     ],
+    // git fetches with the repository's read-only deploy key from etc (dev-kit-host prepare
+    // creates it); the forwarded SSH agent should hold only your signing key, so the container
+    // signs commits but cannot push: push from the host with dev-kit-host push
+    "remoteEnv": {
+        "GIT_SSH_COMMAND": "ssh -i /etc/dev-kit/deploy-key -o IdentitiesOnly=yes -o UserKnownHostsFile=/etc/dev-kit/known_hosts -o StrictHostKeyChecking=yes"
+    },
     "forwardPorts": [5173],
     "portsAttributes": {
-        "5173": { "label": "crowd-dj (dev server)" }
+        "5173": { "label": "crowd-dj (dev server)" },
+        "8080": { "label": "crowd-dj (demo)", "onAutoForward": "silent" }
     },
     "postCreateCommand": "{ test -f .env || cp .env.example .env; } && npm ci",
-    "postStartCommand": "setsid .devcontainer/serve.sh > /tmp/serve.log 2>&1 &",
+    // VS Code runs this in a terminal that hangs up when the command returns: the dev server
+    // ignores that (trap) and leaves the terminal's session (setsid)
+    "postStartCommand": "trap '' HUP; setsid .devcontainer/serve.sh > /tmp/serve.log 2>&1 &",
     "customizations": {
         "vscode": {
             "extensions": [
                 "svelte.svelte-vscode",
                 "esbenp.prettier-vscode",
                 "dbaeumer.vscode-eslint",
-                "editorconfig.editorconfig",
-                "anthropic.claude-code"
+                "editorconfig.editorconfig"
             ]
         }
     }

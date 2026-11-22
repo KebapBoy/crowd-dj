@@ -1,6 +1,8 @@
 # crowd-dj for a real installation behind a reverse proxy (see README, "Running").
-# Use it as it is, e.g. as a git stack with compose path deploy/compose.yaml, and set the variables
-# below in the environment of the stack (keys and comments: .env.example).
+# Use it as it is, e.g. as a Dockhand git stack with compose path deploy/compose.yaml, and set the
+# variables below in the environment of the stack (keys and comments: .env.example). The stack
+# follows main with auto-update off; "just deploy" (dev-kit deploy) deploys a release through the
+# stack's webhook.
 services:
     crowd-dj:
         build: ..
@@ -19,6 +21,15 @@ services:
         volumes:
             # SQLite database (accounts with encrypted tokens, profiles, pools, sessions)
             - data:/data
+        # Hardening: read-only image (state only in /data, scratch in /tmp), no capabilities,
+        # no gaining privileges
+        read_only: true
+        tmpfs:
+            - /tmp
+        cap_drop:
+            - ALL
+        security_opt:
+            - no-new-privileges:true
         networks:
             - proxy
         # No published port: only the reverse proxy talks to it (port 3000)
