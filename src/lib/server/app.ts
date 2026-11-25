@@ -90,11 +90,15 @@ export function sessionChanged(sessionId: string) {
 
 /**
  * Calls to Spotify per minute that participants may cause (searches, albums, links not cached yet):
- * each one, everyone in a session together (profiles are free to make), and everyone on this
- * instance, so nobody uses up the quota the hosts' accounts share.
+ * each one, everyone in a session together (profiles are free to make), all sessions of a host (who
+ * could start new ones), and everyone on this instance, so nobody uses up the quota the hosts'
+ * accounts share. Once the instance's limit ran out, hosts whose sessions used less than an equal
+ * share of it go on, so someone in two sessions cannot use it up for everyone else. Shared among
+ * hosts, not sessions: the allowlist keeps them few, while a host could start session after session.
  */
 export const catalogRateLimit = createRateLimit({
-    limits: { profile: 100, session: 150, all: 300 },
+    limits: { profile: 100, session: 150, host: 150, all: 300 },
+    shares: { all: 'host' },
     windowMs: 60 * 1000
 })
 

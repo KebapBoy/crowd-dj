@@ -63,16 +63,21 @@ export function mayCreateProfile(getClientAddress: () => string): boolean {
 
 /**
  * Runs calls to Spotify for a participant of a session: the call charges what it is about to ask
- * Spotify against the limits per minute of the participant, the session and the instance, and
- * failures turn into errors with a text for them.
+ * Spotify against the limits per minute of the participant, the session, its host and the
+ * instance, and failures turn into errors with a text for them.
  */
 export async function catalogCall<T>(
-    sessionId: string,
+    session: { id: string; hostId: string },
     profileId: string,
     call: (charge: Charge) => Promise<T>
 ): Promise<T> {
     const charge: Charge = (calls) => {
-        const keys = [`profile:${profileId}`, `session:${sessionId}`, 'all']
+        const keys = [
+            `profile:${profileId}`,
+            `session:${session.id}`,
+            `host:${session.hostId}`,
+            'all'
+        ]
         if (calls > 0 && !catalogRateLimit(keys, calls)) error(429, m.catalog_too_many())
     }
     try {

@@ -8,27 +8,46 @@ const SWEEP_INTERVAL_MS = 60 * 1000
  * or more and counts against several keys at once (a participant, their session, everyone). In
  * memory: enough for one container, and forgetting it on a restart does no harm. Refused calls
  * leave nothing behind, so a flood of new keys only grows the map as far as calls are accepted.
+ *
+ * A shared limit (`shares`) is split fairly once it runs out: a call it would refuse still passes
+ * while the caller's own key of the group it is shared among (e.g. its host) has used less than an
+ * equal share of it in its window, the share taken among the keys of that group that have a window
+ * running. So nobody can use it up for everyone else, while the ones who took more than their share
+ * wait. The group's keys must be ones callers cannot make up at will, or making new ones shrinks
+ * everyone's share. The shared key never goes over twice its limit.
  */
 export function createRateLimit({
     limits,
     windowMs,
+    shares = {},
     maxKeys = MAX_KEYS,
     now = () => Date.now()
 }: {
     /** Units per window for keys that start with each prefix, e.g. `{ profile: 100, all: 300 }`. */
     limits: Record<string, number>
+    /** Prefixes of shared limits and the prefix of the keys they are split among, e.g. `{ all: 'session' }`. */
+    shares?: Record<string, string>
     windowMs: number
     maxKeys?: number
     now?: () => number
 }) {
     /** Map order is insertion order: a key moves to the end when its window starts. */
     const windows = new Map<string, { start: number; used: number }>()
+    /** The keys of each group a limit is shared among, so counting them does not scan the map. */
+    const groups = new Map(Object.values(shares).map((group) => [group, new Set<string>()]))
     let sweptAt = 0
+
+    const prefix = (key: string) => key.split(':')[0]
+
+    function forget(key: string) {
+        windows.delete(key)
+        groups.get(prefix(key))?.delete(key)
+    }
 
     function sweep(at: number) {
         if (at - sweptAt < SWEEP_INTERVAL_MS) return
         sweptAt = at
-        for (const [key, entry] of windows) if (at - entry.start >= windowMs) windows.delete(key)
+        for (const [key, entry] of windows) if (at - entry.start >= windowMs) forget(key)
     }
 
     /** Units used in the key's current window. */
@@ -45,14 +64,30 @@ export function createRateLimit({
         }
         windows.delete(key)
         windows.set(key, { start: at, used: cost })
-        if (windows.size > maxKeys) windows.delete(windows.keys().next().value!)
+        groups.get(prefix(key))?.add(key)
+        if (windows.size > maxKeys) forget(windows.keys().next().value!)
+    }
+
+    /** Whether the caller's own key may still take `cost` from the shared limit that ran out. */
+    function withinShare(shared: string, keys: string[], at: number, cost: number) {
+        const group = shares[prefix(shared)]
+        const own = group && keys.find((key) => prefix(key) === group)
+        const limit = limits[prefix(shared)]
+        if (!own || used(shared, at) + cost > 2 * limit) return false
+        let sharing = used(own, at) > 0 ? 0 : 1
+        for (const key of groups.get(group)!) if (used(key, at) > 0) sharing++
+        return used(own, at) + cost <= limit / sharing
     }
 
     /** Takes `cost` units from every key, or none when one of them has not enough left. */
     return (keys: string[], cost = 1): boolean => {
         const at = now()
         sweep(at)
-        const refused = keys.some((key) => used(key, at) + cost > (limits[key.split(':')[0]] ?? 0))
+        const refused = keys.some(
+            (key) =>
+                used(key, at) + cost > (limits[prefix(key)] ?? 0) &&
+                !withinShare(key, keys, at, cost)
+        )
         if (refused) return false
         for (const key of keys) take(key, at, cost)
         return true

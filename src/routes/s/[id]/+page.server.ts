@@ -232,7 +232,7 @@ export const actions: Actions = {
         const ids = trackIds(await request.formData())
         if (ids?.length !== 1) return fail(400, { error: m.error_request() })
         // Usually cached from the search that showed the track
-        const [track] = await catalogCall(session.id, profile.id, (charge) =>
+        const [track] = await catalogCall(session, profile.id, (charge) =>
             catalog.tracks(session.hostId, ids, charge)
         )
         if (!track) return fail(404, { error: m.catalog_not_found() })
@@ -254,7 +254,7 @@ export const actions: Actions = {
         if (!mayChange(profile.id)) return fail(429, { error: m.session_too_many() })
         const ids = trackIds(await request.formData())
         if (!ids) return fail(400, { error: m.error_request() })
-        const tracks = await catalogCall(session.id, profile.id, (charge) =>
+        const tracks = await catalogCall(session, profile.id, (charge) =>
             catalog.tracks(session.hostId, ids, charge)
         )
         await pools.add(

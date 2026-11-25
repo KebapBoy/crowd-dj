@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Someone in two sessions can no longer use up the searches and lookups of the whole instance: once the instance limit per minute ran out, the sessions of hosts that used less than their fair share of it keep searching.
 - An account that signs in as a host at the same moment as a host connects it as their player can no longer end up as both: one of the two wins, the other is refused.
 
 ## [0.2.0] - 2026-11-22

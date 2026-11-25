@@ -11,7 +11,7 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
     const query = (url.searchParams.get('q') ?? '').trim()
     if (!query || query.length > QUERY_MAX_LENGTH) error(400, m.error_request())
     return json(
-        await catalogCall(session.id, profile.id, (charge) =>
+        await catalogCall(session, profile.id, (charge) =>
             catalog.search(session.hostId, query, charge)
         )
     )

@@ -7,7 +7,7 @@ import type { RequestHandler } from './$types'
 /** An album with its tracks, looked up with the host's token. */
 export const GET: RequestHandler = async ({ params, locals }) => {
     const { session, profile } = await memberSession(params.id, locals)
-    const album = await catalogCall(session.id, profile.id, (charge) =>
+    const album = await catalogCall(session, profile.id, (charge) =>
         catalog.album(session.hostId, params.albumId, charge)
     )
     if (!album) error(404, m.catalog_not_found())

@@ -14,7 +14,7 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
     const { session, profile } = await memberSession(params.id, locals)
     const ids = (url.searchParams.get('ids') ?? '').split(',')
     if (ids.length > LINKS_MAX || !ids.every(isSpotifyId)) error(400, m.error_request())
-    const tracks = await catalogCall(session.id, profile.id, (charge) =>
+    const tracks = await catalogCall(session, profile.id, (charge) =>
         catalog.tracks(session.hostId, ids, charge)
     )
     return json(tracks)
