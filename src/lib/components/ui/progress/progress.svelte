@@ -1,30 +1,13 @@
 <script lang="ts">
-    import { Progress as ProgressPrimitive } from 'bits-ui'
-    import { cn, type WithoutChildrenOrChild } from '#lib/utils.js'
+    import { Progress, ProgressIndicator, ProgressTrack } from '@ui-sdk/svelte/progress'
+    import type { ComponentProps } from 'svelte'
+    import { cn } from '#lib/utils.js'
 
-    let {
-        ref = $bindable(null),
-        class: className,
-        max = 100,
-        value,
-        ...restProps
-    }: WithoutChildrenOrChild<ProgressPrimitive.RootProps> = $props()
+    let { class: className, ...restProps }: ComponentProps<typeof Progress> = $props()
 </script>
 
-<ProgressPrimitive.Root
-    bind:ref
-    data-slot="progress"
-    class={cn(
-        'bg-muted h-1 rounded-full relative flex w-full items-center overflow-x-hidden',
-        className
-    )}
-    {value}
-    {max}
-    {...restProps}
->
-    <div
-        data-slot="progress-indicator"
-        class="bg-primary size-full flex-1 transition-all"
-        style="transform: translateX(-{100 - (100 * (value ?? 0)) / (max ?? 1)}%)"
-    ></div>
-</ProgressPrimitive.Root>
+<Progress class={cn('flex w-full items-center', className)} {...restProps}>
+    <ProgressTrack class="bg-muted relative h-1 w-full overflow-hidden rounded-full">
+        <ProgressIndicator class="bg-primary absolute inset-y-0 transition-[width]" />
+    </ProgressTrack>
+</Progress>

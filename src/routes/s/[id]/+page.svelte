@@ -3,7 +3,7 @@
     import QrCodeIcon from '@lucide/svelte/icons/qr-code'
     import SpeakerIcon from '@lucide/svelte/icons/speaker'
     import SquareIcon from '@lucide/svelte/icons/square'
-    import { toast } from 'svelte-sonner'
+    import { toast } from '#lib/components/ui/toast/index.js'
     import { enhance } from '$app/forms'
     import { invalidateAll } from '$app/navigation'
     import CatalogSearch from '#lib/components/catalog-search.svelte'
@@ -104,13 +104,9 @@
             </p>
         </div>
         <Dialog.Root>
-            <Dialog.Trigger>
-                {#snippet child({ props })}
-                    <Button {...props} variant="outline" class="h-11 shrink-0 sm:h-8">
-                        <QrCodeIcon data-icon="inline-start" />
-                        {m.session_invite()}
-                    </Button>
-                {/snippet}
+            <Dialog.Trigger variant="outline" class="h-11 shrink-0 sm:h-8">
+                <QrCodeIcon data-icon="inline-start" />
+                {m.session_invite()}
             </Dialog.Trigger>
             <Dialog.Content>
                 <Dialog.Header>
@@ -185,20 +181,21 @@
             <Card.Content>
                 <Tabs.Root bind:value={tab} class="gap-4">
                     <Tabs.List
+                        aria-label={m.music_heading()}
                         class="w-full group-data-horizontal/tabs:h-11 sm:group-data-horizontal/tabs:h-8"
                     >
-                        <Tabs.Trigger value="search">{m.search()}</Tabs.Trigger>
-                        <Tabs.Trigger value="wishes">
+                        <Tabs.Tab value="search">{m.search()}</Tabs.Tab>
+                        <Tabs.Tab value="wishes">
                             {m.wishes_tab({ count: openWishes })}
-                        </Tabs.Trigger>
-                        <Tabs.Trigger value="pool">
+                        </Tabs.Tab>
+                        <Tabs.Tab value="pool">
                             {m.pool_tab({ count: data.pool.length })}
-                        </Tabs.Trigger>
+                        </Tabs.Tab>
                     </Tabs.List>
-                    <Tabs.Content value="search">
+                    <Tabs.Panel value="search">
                         <CatalogSearch sessionId={data.session.id} {trackActions} />
-                    </Tabs.Content>
-                    <Tabs.Content value="wishes" class="flex flex-col gap-4">
+                    </Tabs.Panel>
+                    <Tabs.Panel value="wishes" class="flex flex-col gap-4">
                         {#if !canWish}
                             {@render note(m.wish_mode_pool_only())}
                         {:else}
@@ -221,8 +218,8 @@
                             {/if}
                         {/if}
                         <WishList wishes={data.wishes} />
-                    </Tabs.Content>
-                    <Tabs.Content value="pool" class="flex flex-col gap-4">
+                    </Tabs.Panel>
+                    <Tabs.Panel value="pool" class="flex flex-col gap-4">
                         {@render note(
                             data.session.mode === 'wishes_only'
                                 ? m.pool_mode_wishes_only()
@@ -238,7 +235,7 @@
                                 : data.session.maxPoolSize}
                             {trackActions}
                         />
-                    </Tabs.Content>
+                    </Tabs.Panel>
                 </Tabs.Root>
             </Card.Content>
         </Card.Root>
@@ -272,17 +269,9 @@
             </Card.Content>
             <Card.Footer>
                 <AlertDialog.Root bind:open={leaveOpen}>
-                    <AlertDialog.Trigger>
-                        {#snippet child({ props })}
-                            <Button
-                                {...props}
-                                variant="outline"
-                                class="h-11 w-full sm:h-8 sm:w-auto"
-                            >
-                                <LogOutIcon data-icon="inline-start" />
-                                {m.session_leave()}
-                            </Button>
-                        {/snippet}
+                    <AlertDialog.Trigger variant="outline" class="h-11 w-full sm:h-8 sm:w-auto">
+                        <LogOutIcon data-icon="inline-start" />
+                        {m.session_leave()}
                     </AlertDialog.Trigger>
                     <AlertDialog.Content>
                         <AlertDialog.Header>
@@ -309,7 +298,12 @@
                                 <AlertDialog.Cancel type="button" class="h-11 sm:h-8">
                                     {m.cancel()}
                                 </AlertDialog.Cancel>
-                                <Button type="submit" class="h-11 sm:h-8" disabled={busy}>
+                                <Button
+                                    type="submit"
+                                    data-agent-confirm={m.agent_confirm_session_leave()}
+                                    class="h-11 sm:h-8"
+                                    disabled={busy}
+                                >
                                     {m.session_leave()}
                                 </Button>
                             </AlertDialog.Footer>
@@ -337,17 +331,9 @@
             </Card.Header>
             <Card.Footer>
                 <AlertDialog.Root bind:open={endOpen}>
-                    <AlertDialog.Trigger>
-                        {#snippet child({ props })}
-                            <Button
-                                {...props}
-                                variant="destructive"
-                                class="h-11 w-full sm:h-8 sm:w-auto"
-                            >
-                                <SquareIcon data-icon="inline-start" />
-                                {m.session_end()}
-                            </Button>
-                        {/snippet}
+                    <AlertDialog.Trigger variant="destructive" class="h-11 w-full sm:h-8 sm:w-auto">
+                        <SquareIcon data-icon="inline-start" />
+                        {m.session_end()}
                     </AlertDialog.Trigger>
                     <AlertDialog.Content>
                         <AlertDialog.Header>
@@ -376,6 +362,7 @@
                                 </AlertDialog.Cancel>
                                 <Button
                                     type="submit"
+                                    data-agent-confirm={m.agent_confirm_session_end()}
                                     variant="destructive"
                                     class="h-11 sm:h-8"
                                     disabled={busy}

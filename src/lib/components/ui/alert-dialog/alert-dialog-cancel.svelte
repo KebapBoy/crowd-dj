@@ -1,27 +1,16 @@
 <script lang="ts">
-    import { AlertDialog as AlertDialogPrimitive } from 'bits-ui'
-    import {
-        buttonVariants,
-        type ButtonVariant,
-        type ButtonSize
-    } from '#lib/components/ui/button/index.js'
+    import { AlertDialogClose } from '@ui-sdk/svelte/alert-dialog'
+    import type { ComponentProps } from 'svelte'
+    import { buttonVariants, type ButtonLook } from '#lib/components/ui/button/index.js'
     import { cn } from '#lib/utils.js'
 
+    /** The answer that closes the dialog without doing anything. */
     let {
-        ref = $bindable(null),
         class: className,
         variant = 'outline',
         size = 'default',
         ...restProps
-    }: AlertDialogPrimitive.CancelProps & {
-        variant?: ButtonVariant
-        size?: ButtonSize
-    } = $props()
+    }: ComponentProps<typeof AlertDialogClose> & ButtonLook = $props()
 </script>
 
-<AlertDialogPrimitive.Cancel
-    bind:ref
-    data-slot="alert-dialog-cancel"
-    class={cn(buttonVariants({ variant, size }), '', className)}
-    {...restProps}
-/>
+<AlertDialogClose class={cn(buttonVariants({ variant, size }), className)} {...restProps} />

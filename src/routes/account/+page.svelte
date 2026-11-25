@@ -7,7 +7,7 @@
     import Trash2Icon from '@lucide/svelte/icons/trash-2'
     import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert'
     import UnplugIcon from '@lucide/svelte/icons/unplug'
-    import { toast } from 'svelte-sonner'
+    import { toast } from '#lib/components/ui/toast/index.js'
     import { enhance } from '$app/forms'
     import { resolve } from '$app/paths'
     import type { SubmitFunction } from '$app/forms'
@@ -113,13 +113,9 @@
                         {m.account_player_swap()}
                     </Button>
                     <AlertDialog.Root bind:open={removeOpen}>
-                        <AlertDialog.Trigger>
-                            {#snippet child({ props })}
-                                <Button {...props} variant="destructive" class={touch}>
-                                    <UnplugIcon data-icon="inline-start" />
-                                    {m.account_player_remove()}
-                                </Button>
-                            {/snippet}
+                        <AlertDialog.Trigger variant="destructive" class={touch}>
+                            <UnplugIcon data-icon="inline-start" />
+                            {m.account_player_remove()}
                         </AlertDialog.Trigger>
                         <AlertDialog.Content>
                             <AlertDialog.Header>
@@ -144,6 +140,7 @@
                                     </AlertDialog.Cancel>
                                     <Button
                                         type="submit"
+                                        data-agent-confirm={m.agent_confirm_player_remove()}
                                         variant="destructive"
                                         class="h-11 sm:h-8"
                                         disabled={busy}
@@ -180,13 +177,9 @@
             </Card.Header>
             <Card.Footer>
                 <AlertDialog.Root bind:open={deleteOpen}>
-                    <AlertDialog.Trigger>
-                        {#snippet child({ props })}
-                            <Button {...props} variant="destructive" class={touch}>
-                                <Trash2Icon data-icon="inline-start" />
-                                {m.account_delete()}
-                            </Button>
-                        {/snippet}
+                    <AlertDialog.Trigger variant="destructive" class={touch}>
+                        <Trash2Icon data-icon="inline-start" />
+                        {m.account_delete()}
                     </AlertDialog.Trigger>
                     <AlertDialog.Content>
                         <AlertDialog.Header>
@@ -206,6 +199,7 @@
                                 </AlertDialog.Cancel>
                                 <Button
                                     type="submit"
+                                    data-agent-confirm={m.agent_confirm_account_delete()}
                                     variant="destructive"
                                     class="h-11 sm:h-8"
                                     disabled={busy}

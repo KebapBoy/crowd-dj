@@ -1,36 +1,24 @@
 <script lang="ts">
-    import { DropdownMenu as DropdownMenuPrimitive } from 'bits-ui'
     import CheckIcon from '@lucide/svelte/icons/check'
-    import { cn, type WithoutChild } from '#lib/utils.js'
+    import { MenuItemIndicator, MenuRadioItem } from '@ui-sdk/svelte/menu'
+    import type { ComponentProps } from 'svelte'
+    import { cn } from '#lib/utils.js'
+    import { itemClasses } from './item-classes.ts'
 
     let {
-        ref = $bindable(null),
         class: className,
-        children: childrenProp,
-        closeOnSelect = false,
+        children: label,
         ...restProps
-    }: WithoutChild<DropdownMenuPrimitive.RadioItemProps> = $props()
+    }: ComponentProps<typeof MenuRadioItem> = $props()
 </script>
 
-<DropdownMenuPrimitive.RadioItem
-    bind:ref
-    {closeOnSelect}
-    data-slot="dropdown-menu-radio-item"
-    class={cn(
-        "focus:bg-accent focus:text-accent-foreground focus:**:text-accent-foreground gap-1.5 rounded-md py-1 pr-8 pl-1.5 text-sm data-inset:pl-7 [&_svg:not([class*='size-'])]:size-4 relative flex cursor-default items-center outline-hidden select-none data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0",
-        className
-    )}
-    {...restProps}
->
-    {#snippet children({ checked })}
-        <span
-            class="absolute right-2 flex items-center justify-center pointer-events-none"
-            data-slot="dropdown-menu-radio-item-indicator"
+<MenuRadioItem class={cn(itemClasses, 'pr-8', className)} {...restProps}>
+    {#snippet children(state)}
+        {@render label?.(state)}
+        <MenuItemIndicator
+            class="pointer-events-none absolute right-2 flex items-center justify-center"
         >
-            {#if checked}
-                <CheckIcon />
-            {/if}
-        </span>
-        {@render childrenProp?.({ checked })}
+            <CheckIcon aria-hidden="true" />
+        </MenuItemIndicator>
     {/snippet}
-</DropdownMenuPrimitive.RadioItem>
+</MenuRadioItem>

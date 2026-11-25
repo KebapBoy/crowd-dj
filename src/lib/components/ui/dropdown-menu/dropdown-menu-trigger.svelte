@@ -1,7 +1,15 @@
 <script lang="ts">
-    import { DropdownMenu as DropdownMenuPrimitive } from 'bits-ui'
+    import { MenuTrigger } from '@ui-sdk/svelte/menu'
+    import type { ComponentProps } from 'svelte'
+    import { buttonVariants, type ButtonLook } from '#lib/components/ui/button/index.js'
+    import { cn } from '#lib/utils.js'
 
-    let { ref = $bindable(null), ...restProps }: DropdownMenuPrimitive.TriggerProps = $props()
+    let {
+        class: className,
+        variant = 'default',
+        size = 'default',
+        ...restProps
+    }: ComponentProps<typeof MenuTrigger> & ButtonLook = $props()
 </script>
 
-<DropdownMenuPrimitive.Trigger bind:ref data-slot="dropdown-menu-trigger" {...restProps} />
+<MenuTrigger class={cn(buttonVariants({ variant, size }), className)} {...restProps} />

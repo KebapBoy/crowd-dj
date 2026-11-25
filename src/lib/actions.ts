@@ -1,4 +1,4 @@
-import { toast } from 'svelte-sonner'
+import { toast } from '#lib/components/ui/toast/index.js'
 import { deserialize } from '$app/forms'
 import { invalidateAll } from '$app/navigation'
 import { m } from '#lib/paraglide/messages.js'

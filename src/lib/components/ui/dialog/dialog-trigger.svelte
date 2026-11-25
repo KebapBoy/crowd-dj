@@ -1,11 +1,15 @@
 <script lang="ts">
-    import { Dialog as DialogPrimitive } from 'bits-ui'
+    import { DialogTrigger } from '@ui-sdk/svelte/dialog'
+    import type { ComponentProps } from 'svelte'
+    import { buttonVariants, type ButtonLook } from '#lib/components/ui/button/index.js'
+    import { cn } from '#lib/utils.js'
 
     let {
-        ref = $bindable(null),
-        type = 'button',
+        class: className,
+        variant = 'default',
+        size = 'default',
         ...restProps
-    }: DialogPrimitive.TriggerProps = $props()
+    }: ComponentProps<typeof DialogTrigger> & ButtonLook = $props()
 </script>
 
-<DialogPrimitive.Trigger bind:ref data-slot="dialog-trigger" {type} {...restProps} />
+<DialogTrigger class={cn(buttonVariants({ variant, size }), className)} {...restProps} />

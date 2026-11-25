@@ -6,7 +6,7 @@
     import ListPlusIcon from '@lucide/svelte/icons/list-plus'
     import MicVocalIcon from '@lucide/svelte/icons/mic-vocal'
     import SearchIcon from '@lucide/svelte/icons/search'
-    import { toast } from 'svelte-sonner'
+    import { toast } from '#lib/components/ui/toast/index.js'
     import { resolve } from '$app/paths'
     import { errorMessage, runAction } from '#lib/actions.ts'
     import TrackCard from '#lib/components/track-card.svelte'

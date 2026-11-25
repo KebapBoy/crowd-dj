@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Browser agents: in a browser with a built-in AI assistant (WebMCP), the assistant gets tools to read crowd-dj's pages and use them for you, like searching, wishing or changing the session settings. Before those tools skip a track, take back a wish, leave or end a session, disconnect a player, delete an account or switch to another profile, crowd-dj asks you; your personal link stays out of their reach.
+
+### Changed
+
+- Dialogs, menus, tabs, switches and notifications are built on ui-sdk instead of bits-ui and svelte-sonner. They look as before; notifications can be swiped away, and the language menu and the track menu stay open while their action runs.
+
 ### Fixed
 
 - Someone in two sessions can no longer use up the searches and lookups of the whole instance: once the instance limit per minute ran out, the sessions of hosts that used less than their fair share of it keep searching.

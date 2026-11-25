@@ -1,17 +1,10 @@
 <script lang="ts">
-    import { Dialog as DialogPrimitive } from 'bits-ui'
+    import { DialogTitle } from '@ui-sdk/svelte/dialog'
+    import type { ComponentProps } from 'svelte'
     import { cn } from '#lib/utils.js'
+    import { titleClasses } from './classes.ts'
 
-    let {
-        ref = $bindable(null),
-        class: className,
-        ...restProps
-    }: DialogPrimitive.TitleProps = $props()
+    let { class: className, ...restProps }: ComponentProps<typeof DialogTitle> = $props()
 </script>
 
-<DialogPrimitive.Title
-    bind:ref
-    data-slot="dialog-title"
-    class={cn('text-base leading-none font-medium', className)}
-    {...restProps}
-/>
+<DialogTitle class={cn(titleClasses, className)} {...restProps} />

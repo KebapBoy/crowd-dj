@@ -47,13 +47,9 @@
 </script>
 
 <Dialog.Root bind:open>
-    <Dialog.Trigger>
-        {#snippet child({ props })}
-            <Button {...props} variant="outline" class="h-11 sm:h-8">
-                <MonitorSpeakerIcon data-icon="inline-start" />
-                {m.playing_device()}
-            </Button>
-        {/snippet}
+    <Dialog.Trigger variant="outline" class="h-11 sm:h-8">
+        <MonitorSpeakerIcon data-icon="inline-start" />
+        {m.playing_device()}
     </Dialog.Trigger>
     <Dialog.Content>
         <Dialog.Header>

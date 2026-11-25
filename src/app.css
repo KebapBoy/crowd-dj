@@ -1,59 +1,17 @@
-/* Styles of the app: Tailwind, and the light and dark variables of shadcn-svelte (style nova, base
- * color neutral). No web fonts: the system fonts of Tailwind's default font-sans. */
+/* Styles of the app: Tailwind, the light and dark variables of shadcn-svelte (style nova, base color
+ * neutral) that the components in src/lib/components/ui/ are styled with, and the toast stack. No web
+ * fonts: the system fonts of Tailwind's default font-sans. */
+
+/* Declared first, so the little CSS ui-sdk adds for its behaviors (hiding closed popups and the
+ * like) loses to the app's own wherever the page puts it. */
+@layer ui-sdk;
+
 @import 'tailwindcss';
-@import 'tw-animate-css';
 
 @custom-variant dark (&:is(.dark *));
 
-/*
- * Custom variants the shadcn-svelte components use (bits-ui sets data-state="open" and the like),
- * copied from dist/tailwind.css of shadcn-svelte 1.7.2, the CLI version that generated
- * src/lib/components/ui/. The CLI would import that file from the shadcn-svelte package instead;
- * copying keeps the CLI out of the dependencies. Its utilities (scroll-fade, shimmer, no-scrollbar)
- * and the accordion keyframes are left out because no component uses them yet.
- */
-@custom-variant data-open {
-    &:where([data-state='open']),
-    &:where([data-open]:not([data-open='false'])) {
-        @slot;
-    }
-}
-
-@custom-variant data-closed {
-    &:where([data-state='closed']),
-    &:where([data-closed]:not([data-closed='false'])) {
-        @slot;
-    }
-}
-
-@custom-variant data-checked {
-    &:where([data-state='checked']),
-    &:where([data-checked]:not([data-checked='false'])) {
-        @slot;
-    }
-}
-
-@custom-variant data-unchecked {
-    &:where([data-state='unchecked']),
-    &:where([data-unchecked]:not([data-unchecked='false'])) {
-        @slot;
-    }
-}
-
-@custom-variant data-disabled {
-    &:where([data-disabled='true']),
-    &:where([data-disabled]:not([data-disabled='false'])) {
-        @slot;
-    }
-}
-
-@custom-variant data-active {
-    &:where([data-state='active']),
-    &:where([data-active]:not([data-active='false'])) {
-        @slot;
-    }
-}
-
+/* ui-sdk marks state with attributes that Tailwind's data-* variants match as they are (data-open,
+ * data-checked, data-selected, …); only the orientation has a value. */
 @custom-variant data-horizontal {
     &:where([data-orientation='horizontal']) {
         @slot;
@@ -185,5 +143,62 @@
     }
     html {
         @apply font-sans;
+    }
+}
+
+/*
+ * The toast stack of ui-sdk's ToastRegion (src/lib/components/ui/toast/): the newest toast in front,
+ * the ones behind it peeking out, all of them spread out while the pointer or focus is in the stack.
+ */
+@layer components {
+    [data-slot='toast-region'] {
+        height: var(--toast-front-height);
+    }
+
+    [data-slot='toast-region'][data-expanded] {
+        height: calc(var(--toast-stack-height) + (var(--toast-count) - 1) * 0.5rem);
+    }
+
+    [data-slot='toast'] {
+        --y: calc(var(--toast-index) * -0.5rem);
+        position: absolute;
+        inset-inline: 0;
+        bottom: 0;
+        z-index: calc(100 - var(--toast-index));
+        overflow: hidden;
+        height: var(--toast-height);
+        translate: var(--toast-swipe-x, 0px) calc(var(--y) + var(--toast-swipe-y, 0px));
+        scale: calc(1 - var(--toast-index) * 0.05);
+        transition-property: translate, scale, opacity, height;
+        transition-duration: 400ms;
+        user-select: none;
+    }
+
+    [data-slot='toast']:not([data-front], [data-expanded]) {
+        height: var(--toast-front-height);
+    }
+
+    [data-slot='toast'][data-expanded] {
+        --y: calc(-1 * (var(--toast-offset) + var(--toast-index) * 0.5rem));
+        scale: 1;
+    }
+
+    [data-slot='toast'][data-starting-style],
+    [data-slot='toast'][data-swiping] {
+        transition: none;
+    }
+
+    [data-slot='toast'][data-starting-style][data-front] {
+        --y: 100%;
+    }
+
+    [data-slot='toast']:is([data-starting-style]:not([data-front]), [data-ending-style]) {
+        opacity: 0;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        [data-slot='toast'] {
+            transition-property: opacity;
+        }
     }
 }

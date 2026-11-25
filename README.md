@@ -13,6 +13,7 @@ A shared music queue for a room full of people. Someone starts a session, everyo
 - **Now playing and up next** on everyone's phone, updated live.
 - **Find music** by searching tracks, albums and artists, or by pasting track links from the Spotify app.
 - Light and dark theme, English and German.
+- **Ready for browser agents:** a browser with a built-in AI assistant (WebMCP) gets tools to read the page and use it for you: search, wish, fill your pool, change settings. Before those tools skip a track, take back a wish, leave or end a session, disconnect a player, delete an account or switch profiles, crowd-dj asks you, and your personal link stays out of their reach. An assistant that clicks through the page by itself, like a person, is not held back by this; it can still do only what you can do.
 
 ## How it works
 

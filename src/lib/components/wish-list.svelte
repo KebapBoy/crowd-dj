@@ -37,6 +37,9 @@
                                 disabled={busy === wish.id}
                                 aria-label={m.wish_withdraw({ title: wish.track.title })}
                                 title={m.wish_withdraw({ title: wish.track.title })}
+                                data-agent-confirm={m.agent_confirm_wish_withdraw({
+                                    title: wish.track.title
+                                })}
                                 onclick={() => withdraw(wish.id)}
                             >
                                 <XIcon />

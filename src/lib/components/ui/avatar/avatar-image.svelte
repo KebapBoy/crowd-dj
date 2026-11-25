@@ -1,17 +1,12 @@
 <script lang="ts">
-    import { Avatar as AvatarPrimitive } from 'bits-ui'
+    import { AvatarImage } from '@ui-sdk/svelte/avatar'
+    import type { ComponentProps } from 'svelte'
     import { cn } from '#lib/utils.js'
 
-    let {
-        ref = $bindable(null),
-        class: className,
-        ...restProps
-    }: AvatarPrimitive.ImageProps = $props()
+    let { class: className, ...restProps }: ComponentProps<typeof AvatarImage> = $props()
 </script>
 
-<AvatarPrimitive.Image
-    bind:ref
-    data-slot="avatar-image"
-    class={cn('rounded-full aspect-square size-full object-cover', className)}
+<AvatarImage
+    class={cn('aspect-square size-full rounded-full object-cover', className)}
     {...restProps}
 />

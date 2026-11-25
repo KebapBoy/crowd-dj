@@ -2,7 +2,7 @@
     import CopyIcon from '@lucide/svelte/icons/copy'
     import Share2Icon from '@lucide/svelte/icons/share-2'
     import { onMount } from 'svelte'
-    import { toast } from 'svelte-sonner'
+    import { toast } from '#lib/components/ui/toast/index.js'
     import QrCode from '#lib/components/qr-code.svelte'
     import { Button } from '#lib/components/ui/button/index.js'
     import { Input } from '#lib/components/ui/input/index.js'

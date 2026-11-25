@@ -43,7 +43,11 @@
                 </Button>
             {:else}
                 <form method="POST" class="w-full sm:w-auto">
-                    <Button type="submit" class="h-11 w-full sm:h-8 sm:w-auto">
+                    <Button
+                        type="submit"
+                        data-agent-confirm={m.agent_confirm_profile_link()}
+                        class="h-11 w-full sm:h-8 sm:w-auto"
+                    >
                         <SmartphoneIcon data-icon="inline-start" />
                         {m.profile_link_use()}
                     </Button>

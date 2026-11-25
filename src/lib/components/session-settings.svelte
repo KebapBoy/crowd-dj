@@ -1,6 +1,6 @@
 <script lang="ts">
     import { untrack } from 'svelte'
-    import { toast } from 'svelte-sonner'
+    import { toast } from '#lib/components/ui/toast/index.js'
     import { enhance } from '$app/forms'
     import { Button } from '#lib/components/ui/button/index.js'
     import { Input } from '#lib/components/ui/input/index.js'
@@ -103,7 +103,7 @@
                     inputmode="numeric"
                     min={1}
                     max={999}
-                    value={settings[limit.name] ?? ''}
+                    value={String(settings[limit.name] ?? '')}
                     class={number}
                 />
             </div>
@@ -136,7 +136,7 @@
                 max={999}
                 required
                 disabled={!skipVoting}
-                value={settings.skipVotes}
+                value={String(settings.skipVotes)}
                 class={number}
             />
         </div>
@@ -151,7 +151,7 @@
                 max={100}
                 required
                 disabled={!skipVoting}
-                value={settings.skipPercent}
+                value={String(settings.skipPercent)}
                 class={number}
             />
         </div>

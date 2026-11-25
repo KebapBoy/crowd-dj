@@ -1,20 +1,10 @@
 <script lang="ts">
-    import { AlertDialog as AlertDialogPrimitive } from 'bits-ui'
+    import { AlertDialogDescription } from '@ui-sdk/svelte/alert-dialog'
+    import type { ComponentProps } from 'svelte'
+    import { descriptionClasses } from '#lib/components/ui/dialog/classes.ts'
     import { cn } from '#lib/utils.js'
 
-    let {
-        ref = $bindable(null),
-        class: className,
-        ...restProps
-    }: AlertDialogPrimitive.DescriptionProps = $props()
+    let { class: className, ...restProps }: ComponentProps<typeof AlertDialogDescription> = $props()
 </script>
 
-<AlertDialogPrimitive.Description
-    bind:ref
-    data-slot="alert-dialog-description"
-    class={cn(
-        'text-muted-foreground *:[a]:hover:text-foreground text-sm text-balance md:text-pretty *:[a]:underline *:[a]:underline-offset-3',
-        className
-    )}
-    {...restProps}
-/>
+<AlertDialogDescription class={cn(descriptionClasses, className)} {...restProps} />

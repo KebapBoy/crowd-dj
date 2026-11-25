@@ -1,6 +1,6 @@
 <script lang="ts">
     import ListMinusIcon from '@lucide/svelte/icons/list-minus'
-    import { toast } from 'svelte-sonner'
+    import { toast } from '#lib/components/ui/toast/index.js'
     import { enhance } from '$app/forms'
     import { runAction } from '#lib/actions.ts'
     import NameForm from '#lib/components/name-form.svelte'
@@ -80,7 +80,8 @@
     </Card.Root>
 
     {#if data.deviceLink}
-        <Card.Root>
+        <!-- The personal link is the profile's key: kept from agents in the browser -->
+        <Card.Root data-agent-hidden>
             <Card.Header>
                 <Card.Title><h2>{m.profile_devices_heading()}</h2></Card.Title>
                 <Card.Description>{m.profile_devices_intro()}</Card.Description>

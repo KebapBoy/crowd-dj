@@ -1,7 +1,15 @@
 <script lang="ts">
-    import { AlertDialog as AlertDialogPrimitive } from 'bits-ui'
+    import { AlertDialogTrigger } from '@ui-sdk/svelte/alert-dialog'
+    import type { ComponentProps } from 'svelte'
+    import { buttonVariants, type ButtonLook } from '#lib/components/ui/button/index.js'
+    import { cn } from '#lib/utils.js'
 
-    let { ref = $bindable(null), ...restProps }: AlertDialogPrimitive.TriggerProps = $props()
+    let {
+        class: className,
+        variant = 'default',
+        size = 'default',
+        ...restProps
+    }: ComponentProps<typeof AlertDialogTrigger> & ButtonLook = $props()
 </script>
 
-<AlertDialogPrimitive.Trigger bind:ref data-slot="alert-dialog-trigger" {...restProps} />
+<AlertDialogTrigger class={cn(buttonVariants({ variant, size }), className)} {...restProps} />

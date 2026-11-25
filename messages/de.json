@@ -298,5 +298,16 @@
     "session_left_heading": "Du hast diese Session verlassen",
     "session_left_intro": "Dein Pool bleibt erhalten. Tritt wieder bei, damit du an die Reihe kommst und deine Wünsche laufen.",
     "session_rejoin": "Wieder beitreten",
-    "session_rejoined": "Du bist wieder in der Session"
+    "session_rejoined": "Du bist wieder in der Session",
+    "notifications": "Benachrichtigungen",
+    "loading": "Lädt",
+    "agent_confirm_session_leave": "Verlässt die Session: Die Person ist nicht mehr an der Reihe, ihre offenen Wünsche spielen nicht mehr.",
+    "agent_confirm_session_end": "Beendet die Session für alle; der Beitritts-Link funktioniert dann nicht mehr.",
+    "agent_confirm_player_remove": "Trennt den Player und löscht seine gespeicherten Spotify-Tokens.",
+    "agent_confirm_account_delete": "Löscht die gespeicherten Spotify-Tokens und meldet den Host überall ab.",
+    "agent_confirm_profile_link": "Stellt dieses Gerät auf ein anderes Profil um.",
+    "agent_confirm_title": "Der Assistent deines Browsers möchte das tun",
+    "agent_confirm_allow": "Erlauben",
+    "agent_confirm_skip": "Überspringt den laufenden Track, für alle im Raum.",
+    "agent_confirm_wish_withdraw": "Nimmt den Wunsch „{title}“ zurück; er verliert seinen Platz in der Reihe."
 }

@@ -134,7 +134,16 @@
             </TrackCard>
             {#if current.durationMs > 0}
                 <div class="flex flex-col gap-1.5">
-                    <Progress value={position} max={current.durationMs} />
+                    <Progress
+                        value={position}
+                        max={current.durationMs}
+                        aria-label={m.playing_heading()}
+                        getValueLabel={(value: number | null) =>
+                            m.playing_progress({
+                                position: time(value ?? 0),
+                                duration: time(current.durationMs)
+                            })}
+                    />
                     <div
                         class="flex items-center justify-between gap-2 text-xs text-muted-foreground tabular-nums"
                     >
@@ -155,6 +164,7 @@
                     variant="outline"
                     class="h-11 w-full sm:h-8 sm:w-auto sm:self-start"
                     disabled={busy}
+                    data-agent-confirm={m.agent_confirm_skip()}
                     onclick={() => skip(current.playId)}
                 >
                     <SkipForwardIcon data-icon="inline-start" />

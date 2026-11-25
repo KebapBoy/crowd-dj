@@ -298,5 +298,16 @@
     "session_left_heading": "You left this session",
     "session_left_intro": "Your pool is kept. Join again to take turns and have your wishes play.",
     "session_rejoin": "Join again",
-    "session_rejoined": "You are back in the session"
+    "session_rejoined": "You are back in the session",
+    "notifications": "Notifications",
+    "loading": "Loading",
+    "agent_confirm_session_leave": "Leaves the session: the person’s turns end and their open wishes no longer play.",
+    "agent_confirm_session_end": "Ends the session for everyone; the join link stops working.",
+    "agent_confirm_player_remove": "Disconnects the player and deletes its stored Spotify tokens.",
+    "agent_confirm_account_delete": "Deletes the stored Spotify tokens and signs the host out everywhere.",
+    "agent_confirm_profile_link": "Switches this device to another profile.",
+    "agent_confirm_title": "Your browser’s assistant wants to do this",
+    "agent_confirm_allow": "Allow",
+    "agent_confirm_skip": "Skips the track that plays, for everyone in the room.",
+    "agent_confirm_wish_withdraw": "Takes back the wish “{title}”; it loses its place in the queue."
 }
