@@ -96,16 +96,26 @@ describe('accounts', () => {
         expect(await accounts.playerProblem('host', 'host')).toBe('self')
         expect(await accounts.playerProblem('host', 'player1')).toBeNull()
 
-        await accounts.connectPlayer('host', tokens('player1'), profile('player1'))
+        expect(
+            await accounts.connectPlayer('host', tokens('player1'), profile('player1'))
+        ).toBeNull()
         expect((await accounts.player('host'))?.id).toBe('player1')
         expect((await accounts.get('player1'))?.playerOf).toBe('host')
         // Connecting it again renews it
-        expect(await accounts.playerProblem('host', 'player1')).toBeNull()
-        await accounts.connectPlayer('host', tokens('player1'), profile('player1'))
+        expect(
+            await accounts.connectPlayer('host', tokens('player1'), profile('player1'))
+        ).toBeNull()
 
+        // Refused connections change nothing
         await accounts.saveAuthorization(tokens('other'), profile('other'))
-        expect(await accounts.playerProblem('other', 'player1')).toBe('taken')
-        expect(await accounts.playerProblem('host', 'other')).toBe('host')
+        expect(await accounts.connectPlayer('host', tokens('host'), profile('host'))).toBe('self')
+        expect(await accounts.connectPlayer('other', tokens('player1'), profile('player1'))).toBe(
+            'taken'
+        )
+        expect(await accounts.connectPlayer('host', tokens('other'), profile('other'))).toBe('host')
+        expect((await accounts.player('host'))?.id).toBe('player1')
+        expect((await accounts.get('other'))?.playerOf).toBeNull()
+        expect(await accounts.player('other')).toBeNull()
 
         // Swapping deletes the previous player with its tokens
         await accounts.connectPlayer('host', tokens('player2'), profile('player2'))
@@ -134,6 +144,38 @@ describe('accounts', () => {
         expect(host?.id).toBe('host')
         expect((await accounts.player('host'))?.id).toBe('player')
     })
+
+    it('does not let a player sign in as a host', async () => {
+        await accounts.saveAuthorization(tokens('host'), profile('host'))
+        await accounts.connectPlayer('host', tokens('player'), profile('player'))
+        const renewed = { ...tokens('player'), refreshToken: 'refresh-renewed' }
+        expect(await accounts.saveAuthorization(renewed, profile('player'))).toBe(false)
+        expect((await accounts.get('player'))?.playerOf).toBe('host')
+        expect(await accounts.saveAuthorization(tokens('host'), profile('host'))).toBe(true)
+    })
+
+    it.each([false, true])(
+        'lets a host sign-in or a player connection of the same account win, never both (player first: %s)',
+        async (playerFirst) => {
+            await accounts.saveAuthorization(tokens('host'), profile('host'))
+            await accounts.connectPlayer('host', tokens('old'), profile('old'))
+            const signIn = () => accounts.saveAuthorization(tokens('both'), profile('both'))
+            const connect = () => accounts.connectPlayer('host', tokens('both'), profile('both'))
+            const [signedIn, problem] = playerFirst
+                ? await Promise.all([connect(), signIn()]).then(([p, s]) => [s, p] as const)
+                : await Promise.all([signIn(), connect()])
+            const both = await accounts.get('both')
+            if (signedIn) {
+                expect(problem).toBe('host')
+                expect(both?.playerOf).toBeNull()
+                expect((await accounts.player('host'))?.id).toBe('old')
+            } else {
+                expect(problem).toBeNull()
+                expect(both?.playerOf).toBe('host')
+                expect(await accounts.get('old')).toBeNull()
+            }
+        }
+    )
 
     it('deletes a host with its player and sign-ins', async () => {
         await accounts.saveAuthorization(tokens('host'), profile('host'))

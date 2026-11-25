@@ -1,10 +1,9 @@
-import { and, eq, gt, lt, ne } from 'drizzle-orm'
+import { and, eq, gt, isNull, lt, ne, notExists, or } from 'drizzle-orm'
 import { decrypt, encrypt, hashToken, randomToken } from './crypto'
 import type { Database } from './db/open'
 import { login, spotifyAccount, type SpotifyAccount } from './db/schema'
 import {
     allowsPlayback,
-    getProfile,
     refreshAccessToken,
     SpotifyError,
     type OAuthClient,
@@ -105,8 +104,13 @@ export function createAccounts({ db, key, client, now = () => new Date() }: Acco
         }
     }
 
-    /** The statement that stores an account's tokens; await it alone or pass it to a batch. */
-    function upsert(tokens: TokenResponse, profile: SpotifyProfile, playerOf?: string) {
+    /**
+     * The statement that stores an account's tokens; await it alone or pass it to a batch. It
+     * returns the account's id, or nothing when the account exists in another role: as a host's
+     * player when `playerOf` is null, as a host or another host's player when it is set. The
+     * condition is part of the statement, so a sign-in that happens meanwhile cannot slip past it.
+     */
+    function upsert(tokens: TokenResponse, profile: SpotifyProfile, playerOf: string | null) {
         if (!tokens.refreshToken) throw new Error('Spotify sent no refresh token')
         const at = now()
         const values = {
@@ -117,13 +121,31 @@ export function createAccounts({ db, key, client, now = () => new Date() }: Acco
             accessTokenExpiresAt: new Date(at.getTime() + tokens.expiresIn * 1000),
             scope: tokens.scope,
             authorizedAt: at,
-            revokedAt: null,
-            ...(playerOf && { playerOf })
+            revokedAt: null
         }
         return db
             .insert(spotifyAccount)
-            .values({ id: profile.id, createdAt: at, ...values })
-            .onConflictDoUpdate({ target: spotifyAccount.id, set: values })
+            .values({ id: profile.id, createdAt: at, playerOf, ...values })
+            .onConflictDoUpdate({
+                target: spotifyAccount.id,
+                set: values,
+                setWhere: playerOf
+                    ? eq(spotifyAccount.playerOf, playerOf)
+                    : isNull(spotifyAccount.playerOf)
+            })
+            .returning({ id: spotifyAccount.id })
+    }
+
+    /**
+     * Whether an account may become the host's player: not the host itself, not another host (an
+     * account that signs in on its own), not another host's player.
+     */
+    async function playerProblem(hostId: string, accountId: string): Promise<PlayerProblem | null> {
+        if (accountId === hostId) return 'self'
+        const account = await find(accountId)
+        if (!account) return null
+        if (account.playerOf === null) return 'host'
+        return account.playerOf === hostId ? null : 'taken'
     }
 
     /** Deletes an account; its sign-ins and its player go with it (ON DELETE CASCADE). */
@@ -155,33 +177,48 @@ export function createAccounts({ db, key, client, now = () => new Date() }: Acco
     return {
         /**
          * Stores the tokens of a host's completed sign-in and the profile they belong to. A new
-         * sign-in restarts the 6 months of the refresh token and clears a revocation.
+         * sign-in restarts the 6 months of the refresh token and clears a revocation. Returns false
+         * and stores nothing when the account is a host's player: a player does not sign in itself.
          */
-        async saveAuthorization(
-            tokens: TokenResponse,
-            profile?: SpotifyProfile
-        ): Promise<SpotifyProfile> {
-            profile ??= await getProfile(tokens.accessToken, client.fetch)
-            await upsert(tokens, profile)
-            return profile
+        async saveAuthorization(tokens: TokenResponse, profile: SpotifyProfile): Promise<boolean> {
+            const saved = await upsert(tokens, profile, null)
+            return saved.length > 0
         },
 
         /**
          * Stores the tokens of an account a host connected as their player, together with the link to
          * the host, so a half-done connection never leaves it looking like a host. A previous player
-         * is deleted with its tokens. Check `playerProblem` first.
+         * is deleted with its tokens. Returns why the account cannot be the host's player, and then
+         * changes nothing.
          */
-        async connectPlayer(hostId: string, tokens: TokenResponse, profile: SpotifyProfile) {
+        async connectPlayer(
+            hostId: string,
+            tokens: TokenResponse,
+            profile: SpotifyProfile
+        ): Promise<PlayerProblem | null> {
+            if (profile.id === hostId) return 'self'
+            // The same condition as the upsert's: the account is new or already the host's player
+            const otherRole = and(
+                eq(spotifyAccount.id, profile.id),
+                or(isNull(spotifyAccount.playerOf), ne(spotifyAccount.playerOf, hostId))
+            )
             // A batch is atomic like a transaction, but does not hold the database's only
             // connection across awaits, which would make every parallel query fail
-            await db.batch([
+            const [, saved] = await db.batch([
+                // First, as a host has one player; a refused account keeps the old one
                 db
                     .delete(spotifyAccount)
                     .where(
-                        and(eq(spotifyAccount.playerOf, hostId), ne(spotifyAccount.id, profile.id))
+                        and(
+                            eq(spotifyAccount.playerOf, hostId),
+                            ne(spotifyAccount.id, profile.id),
+                            notExists(db.select().from(spotifyAccount).where(otherRole))
+                        )
                     ),
                 upsert(tokens, profile, hostId)
             ])
+            if (saved.length > 0) return null
+            return (await playerProblem(hostId, profile.id)) ?? 'host'
         },
 
         /** A valid access token for the account, refreshed when needed. */
@@ -228,17 +265,7 @@ export function createAccounts({ db, key, client, now = () => new Date() }: Acco
             return account ? view(account) : null
         },
 
-        /**
-         * Whether an account may become the host's player: not the host itself, not another host
-         * (an account that signs in on its own), not another host's player.
-         */
-        async playerProblem(hostId: string, accountId: string): Promise<PlayerProblem | null> {
-            if (accountId === hostId) return 'self'
-            const account = await find(accountId)
-            if (!account) return null
-            if (account.playerOf === null) return 'host'
-            return account.playerOf === hostId ? null : 'taken'
-        },
+        playerProblem,
 
         /** Deletes the host's player with its tokens; the host's own account plays again. */
         async removePlayer(hostId: string) {

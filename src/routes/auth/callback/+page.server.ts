@@ -33,29 +33,27 @@ export const load: PageServerLoad = async ({ url, cookies, locals }) => {
 
     if (purpose === 'player' && host) {
         // Usually the host forgot to pick "Not you?" in Spotify's dialog
-        const problem = await accounts.playerProblem(host.id, profile.id)
+        const problem = await accounts.connectPlayer(host.id, tokens, profile)
         if (problem === 'self') error(409, m.auth_player_is_self())
         if (problem === 'taken') error(409, m.auth_player_taken())
         if (problem) error(409, m.auth_player_is_host())
-        await accounts.connectPlayer(host.id, tokens, profile)
-        redirect(303, '/account')
-    }
-
-    if (purpose === 'playback' && host) {
-        // The browser is signed in to another account at spotify.com, e.g. the player
-        if (profile.id !== host.id) error(409, m.auth_playback_not_self())
-        await accounts.saveAuthorization(tokens, profile)
         redirect(303, '/account')
     }
 
     // A player plays for its host and does not sign in itself
-    const existing = await accounts.get(profile.id)
-    if (existing?.playerOf) error(409, m.auth_is_player())
+    if (purpose === 'playback' && host) {
+        // The browser is signed in to another account at spotify.com, e.g. the player
+        if (profile.id !== host.id) error(409, m.auth_playback_not_self())
+        if (!(await accounts.saveAuthorization(tokens, profile))) error(409, m.auth_is_player())
+        redirect(303, '/account')
+    }
+
     // A host whose own account plays keeps that: the sign-in asks for no scope, so it goes on to
     // Spotify once more for the playback scopes, which Spotify grants without asking again. Should
     // that fail, "My account" offers to allow playback
+    const existing = await accounts.get(profile.id)
     const playsItself = existing?.allowsPlayback && !(await accounts.player(profile.id))
-    await accounts.saveAuthorization(tokens, profile)
+    if (!(await accounts.saveAuthorization(tokens, profile))) error(409, m.auth_is_player())
 
     const previous = cookies.get(LOGIN_COOKIE)
     if (previous) await accounts.deleteLogin(previous)

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- An account that signs in as a host at the same moment as a host connects it as their player can no longer end up as both: one of the two wins, the other is refused.
+
 ## [0.2.0] - 2026-11-22
 
 ### Added
