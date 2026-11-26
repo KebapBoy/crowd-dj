@@ -1,10 +1,11 @@
 import { error, isHttpError } from '@sveltejs/kit'
-import { actionRateLimit, catalogRateLimit, profileRateLimit, sessions } from './app'
+import { actionRateLimit, catalogRateLimit, inboxes, profileRateLimit, sessions } from './app'
 import { errorSummary } from './errors'
 import { addressKey } from './rate-limit'
 import type { Charge } from './catalog'
 import { SpotifyError } from './spotify/oauth'
 import { m } from '#lib/paraglide/messages.js'
+import { getLocale } from '#lib/paraglide/runtime.js'
 
 /** The open session of a link; an unknown or ended one is an error page. */
 export async function openSession(id: string) {
@@ -59,6 +60,31 @@ export function mayCreateProfile(getClientAddress: () => string): boolean {
         address = 'unknown'
     }
     return profileRateLimit([`address:${address}`])
+}
+
+/**
+ * Creates the host's lasting inbox, or the inbox of their session, in their Spotify account (in
+ * the visitor's language); failures turn into errors with a text for them.
+ */
+export async function createInbox(hostId: string, sessionId: string | null) {
+    const playlist = sessionId
+        ? {
+              name: m.inbox_session_playlist_name({
+                  date: new Date().toLocaleDateString(getLocale())
+              }),
+              description: m.inbox_session_playlist_description()
+          }
+        : { name: m.inbox_playlist_name(), description: m.inbox_playlist_description() }
+    try {
+        return await inboxes.create(hostId, sessionId, playlist)
+    } catch (caught) {
+        console.error(errorSummary(caught))
+        if (caught instanceof SpotifyError && caught.invalidGrant)
+            error(503, m.catalog_host_signin())
+        if (caught instanceof SpotifyError && caught.status === 403)
+            error(503, m.inbox_create_refused())
+        error(502, m.inbox_create_failed())
+    }
 }
 
 /**

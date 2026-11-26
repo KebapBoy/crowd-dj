@@ -1,14 +1,15 @@
 import { error, redirect } from '@sveltejs/kit'
-import { accounts, LOGIN_COOKIE, OAUTH_COOKIE, oauthClient } from '#lib/server/app.ts'
-import { startAuthorization } from '#lib/server/auth.ts'
+import { accounts, inboxes, LOGIN_COOKIE, OAUTH_COOKIE, oauthClient } from '#lib/server/app.ts'
+import { ownScopes, startAuthorization } from '#lib/server/auth.ts'
 import { errorSummary } from '#lib/server/errors.ts'
+import { createInbox, hostSession } from '#lib/server/guards.ts'
 import { exchangeCode, getProfile, SpotifyError } from '#lib/server/spotify/oauth.ts'
 import { m } from '#lib/paraglide/messages.js'
 import type { PageServerLoad } from './$types'
 
 /** Spotify sends the browser back here after a host signed in or connected their player. */
 export const load: PageServerLoad = async ({ url, cookies, locals }) => {
-    const [purpose, expectedState] = (cookies.get(OAUTH_COOKIE) ?? '').split(':')
+    const [purpose, expectedState, sessionId] = (cookies.get(OAUTH_COOKIE) ?? '').split(':')
     cookies.delete(OAUTH_COOKIE, { path: '/auth' })
 
     const state = url.searchParams.get('state')
@@ -17,7 +18,8 @@ export const load: PageServerLoad = async ({ url, cookies, locals }) => {
     const code = url.searchParams.get('code')
     if (!code) error(400, m.auth_cancelled())
     const host = locals.account
-    if ((purpose === 'player' || purpose === 'playback') && !host) error(401, m.sign_in_required())
+    const own = purpose === 'playback' || purpose === 'inbox'
+    if ((purpose === 'player' || own) && !host) error(401, m.sign_in_required())
 
     let tokens, profile
     try {
@@ -40,19 +42,29 @@ export const load: PageServerLoad = async ({ url, cookies, locals }) => {
         redirect(303, '/account')
     }
 
-    // A player plays for its host and does not sign in itself
-    if (purpose === 'playback' && host) {
+    // The host's own account allows more: playing, or inbox playlists (one is created right away)
+    if (own && host) {
         // The browser is signed in to another account at spotify.com, e.g. the player
         if (profile.id !== host.id) error(409, m.auth_playback_not_self())
+        // A player plays for its host and does not sign in itself
         if (!(await accounts.saveAuthorization(tokens, profile))) error(409, m.auth_is_player())
+        if (purpose === 'inbox' && sessionId) {
+            const session = await hostSession(sessionId, locals)
+            await createInbox(host.id, session.id)
+            redirect(303, `/s/${session.id}`)
+        }
+        if (purpose === 'inbox') await createInbox(host.id, null)
         redirect(303, '/account')
     }
 
-    // A host whose own account plays keeps that: the sign-in asks for no scope, so it goes on to
-    // Spotify once more for the playback scopes, which Spotify grants without asking again. Should
-    // that fail, "My account" offers to allow playback
+    // A sign-in asks for no scope, so a host whose own account plays or holds inboxes goes on to
+    // Spotify once more for those scopes, which Spotify grants without asking again. Should that
+    // fail, "My account" offers to allow them again
     const existing = await accounts.get(profile.id)
-    const playsItself = existing?.allowsPlayback && !(await accounts.player(profile.id))
+    const scopes = ownScopes({
+        playback: !!existing?.allowsPlayback && !(await accounts.player(profile.id)),
+        inbox: !!existing?.allowsInbox && (await inboxes.hasAny(profile.id))
+    })
     if (!(await accounts.saveAuthorization(tokens, profile))) error(409, m.auth_is_player())
 
     const previous = cookies.get(LOGIN_COOKIE)
@@ -64,6 +76,7 @@ export const load: PageServerLoad = async ({ url, cookies, locals }) => {
         sameSite: 'lax',
         expires: login.expiresAt
     })
-    if (playsItself) startAuthorization(url, cookies, 'playback', { showDialog: false })
+    if (scopes.length > 0)
+        startAuthorization(url, cookies, 'playback', { showDialog: false, scopes })
     redirect(303, '/account')
 }

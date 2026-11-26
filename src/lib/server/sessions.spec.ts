@@ -84,7 +84,21 @@ describe('sessions', () => {
         now = new Date(now.getTime() + 1000)
         await sessions.join(id, sam.profile.id)
         await sessions.join(id, alex.profile.id)
-        expect(await sessions.members(id)).toEqual([alex.profile, sam.profile])
+        const member = ({ id, name }: { id: string; name: string }) => ({ id, name })
+        expect(await sessions.members(id)).toEqual([member(alex.profile), member(sam.profile)])
+    })
+
+    it('finds the open sessions profiles are in', async () => {
+        const { id } = await sessions.start('host')
+        const alex = await profiles.create('Alex')
+        const sam = await profiles.create('Sam')
+        await sessions.join(id, alex.profile.id)
+        await sessions.join(id, sam.profile.id)
+        await sessions.leave(id, sam.profile.id)
+        expect(await sessions.openWith([alex.profile.id, sam.profile.id])).toEqual([id])
+        expect(await sessions.openWith([sam.profile.id])).toEqual([])
+        await sessions.end(id)
+        expect(await sessions.openWith([alex.profile.id])).toEqual([])
     })
 
     it('stores settings and keeps the vote thresholds while voting is off', async () => {

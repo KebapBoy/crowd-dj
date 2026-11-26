@@ -3,6 +3,7 @@ import { decrypt, encrypt, hashToken, randomToken } from './crypto'
 import type { Database } from './db/open'
 import { login, spotifyAccount, type SpotifyAccount } from './db/schema'
 import {
+    allowsInbox,
     allowsPlayback,
     refreshAccessToken,
     SpotifyError,
@@ -31,6 +32,8 @@ export interface AccountView {
     playerOf: string | null
     /** Whether the account allowed crowd-dj to read and control its playback. */
     allowsPlayback: boolean
+    /** Whether the account allowed crowd-dj to create, read and change its inbox playlists. */
+    allowsInbox: boolean
     tokenExpiresAt: Date
     tokenStatus: TokenStatus
 }
@@ -71,6 +74,7 @@ export function createAccounts({ db, key, client, now = () => new Date() }: Acco
             imageUrl: account.imageUrl,
             playerOf: account.playerOf,
             allowsPlayback: allowsPlayback(account.scope),
+            allowsInbox: allowsInbox(account.scope),
             tokenExpiresAt: tokenExpiresAt(account),
             tokenStatus: tokenStatus(account)
         }
@@ -290,12 +294,21 @@ export function createAccounts({ db, key, client, now = () => new Date() }: Acco
             return { token, expiresAt }
         },
 
-        /** The account a login cookie belongs to, or null when it is unknown or expired. */
-        async accountForLogin(token: string): Promise<AccountView | null> {
+        /**
+         * The account a login cookie belongs to and when that sign-in expires, or null when it is
+         * unknown or expired.
+         */
+        async login(token: string): Promise<{ account: AccountView; expiresAt: Date } | null> {
             const row = await db.query.login.findFirst({
                 where: and(eq(login.tokenHash, hashToken(token)), gt(login.expiresAt, now()))
             })
-            return row ? this.get(row.accountId) : null
+            const account = row && (await this.get(row.accountId))
+            return account ? { account, expiresAt: row.expiresAt } : null
+        },
+
+        /** The account a login cookie belongs to, or null when it is unknown or expired. */
+        async accountForLogin(token: string): Promise<AccountView | null> {
+            return (await this.login(token))?.account ?? null
         },
 
         async deleteLogin(token: string) {

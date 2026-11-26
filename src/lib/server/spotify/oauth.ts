@@ -10,13 +10,33 @@ const API = 'https://api.spotify.com/v1'
  * What the account that plays a session has to allow: reading and controlling its playback. A
  * host's sign-in asks for no scope at all (`GET /me` and the catalog need none); only the account
  * that plays asks for these: the host's player, or the host's own account when it plays itself.
+ * The host's own account also asks for `INBOX_SCOPES` once the host sets up an inbox.
  */
 export const PLAYBACK_SCOPES = ['user-read-playback-state', 'user-modify-playback-state'] as const
 
+/**
+ * What a host's own account allows when the host sets up an inbox: creating a collaborative
+ * playlist (Spotify asks for both modify scopes for that), reading its items and removing some.
+ */
+export const INBOX_SCOPES = [
+    'playlist-read-private',
+    'playlist-modify-private',
+    'playlist-modify-public'
+] as const
+
+const grants = (scope: string, wanted: readonly string[]) => {
+    const granted = new Set(scope.split(' '))
+    return wanted.every((name) => granted.has(name))
+}
+
 /** Whether the scopes Spotify granted (space-separated) include every one of `PLAYBACK_SCOPES`. */
 export function allowsPlayback(scope: string): boolean {
-    const granted = new Set(scope.split(' '))
-    return PLAYBACK_SCOPES.every((name) => granted.has(name))
+    return grants(scope, PLAYBACK_SCOPES)
+}
+
+/** Whether the scopes Spotify granted (space-separated) include every one of `INBOX_SCOPES`. */
+export function allowsInbox(scope: string): boolean {
+    return grants(scope, INBOX_SCOPES)
 }
 
 export interface OAuthClient {

@@ -5,6 +5,7 @@ import { tokenKey } from './crypto'
 import { db } from './db'
 import { createEngine } from './engine'
 import { createEvents } from './events'
+import { createInboxes } from './inboxes'
 import { createPicker } from './picker'
 import { createPlayingView } from './playing'
 import { createPools } from './pools'
@@ -86,6 +87,22 @@ export const playing = createPlayingView({
 export function sessionChanged(sessionId: string) {
     events.publish(sessionId)
     engine.poke(sessionId)
+}
+
+/** Inbox playlists of the hosts, whose tracks land in the pools of the people who added them. */
+export const inboxes = createInboxes({ db, api: spotify, catalog })
+
+/** The pools of these profiles changed: every open session they are in may play differently. */
+export async function poolsChanged(profileIds: Iterable<string>) {
+    for (const id of await sessions.openWith([...profileIds])) sessionChanged(id)
+}
+
+/** Looks at the inboxes of hosts with an open session and tells the sessions what changed. */
+export async function syncInboxes() {
+    const result = await inboxes.syncOpen()
+    await poolsChanged(result.profiles)
+    // A session's inbox is gone: its pages stop showing it
+    for (const id of result.sessions) events.publish(id)
 }
 
 /**

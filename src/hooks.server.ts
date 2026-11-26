@@ -3,12 +3,16 @@ import { sequence } from '@sveltejs/kit/hooks'
 import {
     accounts,
     engine,
+    inboxes,
     LOGIN_COOKIE,
+    poolsChanged,
     PROFILE_COOKIE,
     profiles,
     sessions,
-    setProfileCookie
+    setProfileCookie,
+    syncInboxes
 } from '#lib/server/app.ts'
+import { INBOX_SYNC_MS } from '#lib/server/inboxes.ts'
 import { mayCreateProfile } from '#lib/server/guards.ts'
 import { spotifyProfileName } from '#lib/server/profiles.ts'
 import { db } from '#lib/server/db/index.ts'
@@ -31,6 +35,9 @@ export const init: ServerInit = async () => {
     setInterval(() => {
         sessions.endIdle().catch((error) => console.error(errorSummary(error)))
     }, IDLE_CHECK_MS).unref()
+    setInterval(() => {
+        syncInboxes().catch((error) => console.error(errorSummary(error)))
+    }, INBOX_SYNC_MS).unref()
 }
 
 const handleParaglide: Handle = ({ event, resolve }) =>
@@ -49,7 +56,9 @@ const handleParaglide: Handle = ({ event, resolve }) =>
 /** The Spotify account this browser is signed in with (hosts only). */
 const handleLogin: Handle = async ({ event, resolve }) => {
     const token = event.cookies.get(LOGIN_COOKIE)
-    event.locals.account = token ? await accounts.accountForLogin(token) : null
+    const login = token ? await accounts.login(token) : null
+    event.locals.account = login?.account ?? null
+    event.locals.loginExpiresAt = login?.expiresAt ?? null
     if (token && !event.locals.account) event.cookies.delete(LOGIN_COOKIE, { path: '/' })
     return resolve(event)
 }
@@ -73,6 +82,26 @@ const handleProfile: Handle = async ({ event, resolve }) => {
         } else if (locals.profile && locals.profile.name !== name) {
             await profiles.rename(locals.profile.id, name)
             locals.profile = { ...locals.profile, name }
+        }
+        // The sign-in proves who it is, until it expires: tracks the account adds to inboxes land
+        // in this pool, unless the profile of another device signed in to it has them already
+        const userId = locals.account.id
+        const until = locals.loginExpiresAt
+        const { profile } = locals
+        const vouched =
+            profile?.spotifyUserId === userId &&
+            !!profile.spotifyVerifiedUntil &&
+            !!until &&
+            profile.spotifyVerifiedUntil >= until
+        if (
+            profile &&
+            until &&
+            !vouched &&
+            (await profiles.claimSpotify(profile.id, userId, until))
+        ) {
+            locals.profile = { ...profile, spotifyUserId: userId, spotifyVerifiedUntil: until }
+            if (profile.spotifyUserId !== userId)
+                await poolsChanged(await inboxes.importFor(userId))
         }
     }
     return resolve(event)

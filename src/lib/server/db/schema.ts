@@ -61,6 +61,17 @@ export const profile = sqliteTable('profile', {
     id: text('id').primaryKey(),
     tokenHash: text('token_hash').notNull().unique(),
     name: text('name').notNull(),
+    /**
+     * The Spotify user the person said they are (their profile link), so tracks they add to an
+     * inbox playlist land in their pool. Set from the account for a browser signed in with Spotify.
+     */
+    spotifyUserId: text('spotify_user_id').unique(),
+    /**
+     * Set while a sign-in with that Spotify account vouches for `spotify_user_id` (rather than a
+     * pasted link): until the latest such sign-in of this profile's browser expires. Until then no
+     * other signed-in browser takes the user away.
+     */
+    spotifyVerifiedUntil: integer('spotify_verified_until', { mode: 'timestamp_ms' }),
     createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull()
 })
 
@@ -241,7 +252,74 @@ export const skipVote = sqliteTable(
     (table) => [primaryKey({ columns: [table.playId, table.profileId] })]
 )
 
+/**
+ * A collaborative playlist of a host that crowd-dj created as an inbox: tracks people add to it in
+ * the Spotify app land in their pools (`inbox_item.added_by` matched with
+ * `profile.spotify_user_id`). A host has one that lasts, and each session may have its own.
+ */
+export const inbox = sqliteTable(
+    'inbox',
+    {
+        /** Spotify playlist ID */
+        id: text('id').primaryKey(),
+        hostId: text('host_id')
+            .notNull()
+            .references(() => spotifyAccount.id, { onDelete: 'cascade' }),
+        /** Set for the inbox of one session; null for the host's lasting one. */
+        sessionId: text('session_id')
+            .unique()
+            .references(() => session.id, { onDelete: 'cascade' }),
+        /** The invitation to collaborate that the host made in the Spotify app; shown in sessions. */
+        inviteUrl: text('invite_url'),
+        /** The playlist's version when it was last read, so an unchanged one is not read again. */
+        snapshotId: text('snapshot_id'),
+        /**
+         * Whether the last read got every item: one that was cut off at `INBOX_ITEMS_MAX` is not
+         * tidied up, since removing a track removes the copies that were not read too.
+         */
+        complete: integer('complete', { mode: 'boolean' }).notNull().default(true),
+        syncedAt: integer('synced_at', { mode: 'timestamp_ms' }),
+        createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull()
+    },
+    (table) => [
+        uniqueIndex('inbox_lasting_per_host')
+            .on(table.hostId)
+            .where(sql`session_id is null`)
+    ]
+)
+
+/** What an inbox playlist held when it was last read: who added which track, and when. */
+export const inboxItem = sqliteTable(
+    'inbox_item',
+    {
+        inboxId: text('inbox_id')
+            .notNull()
+            .references(() => inbox.id, { onDelete: 'cascade' }),
+        trackId: text('track_id')
+            .notNull()
+            .references(() => track.id),
+        /** The Spotify user who added it; empty when Spotify did not say (it is never imported). */
+        addedBy: text('added_by').notNull(),
+        addedAt: integer('added_at', { mode: 'timestamp_ms' }).notNull(),
+        /**
+         * When it went into the pool of the profile linked to `added_by`; null while no profile is.
+         * It goes in once: taking it out of the pool later does not bring it back.
+         */
+        importedAt: integer('imported_at', { mode: 'timestamp_ms' }),
+        /**
+         * The profile it went into. Only while that profile is still linked to `added_by` may
+         * tidying up remove the track from the playlist.
+         */
+        importedTo: text('imported_to').references(() => profile.id, { onDelete: 'set null' })
+    },
+    (table) => [
+        primaryKey({ columns: [table.inboxId, table.trackId, table.addedBy] }),
+        index('inbox_item_added_by').on(table.addedBy)
+    ]
+)
+
 export type Profile = typeof profile.$inferSelect
+export type Inbox = typeof inbox.$inferSelect
 export type Session = typeof session.$inferSelect
 export type SessionMode = Session['mode']
 export type Track = typeof track.$inferSelect

@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull, lt } from 'drizzle-orm'
+import { and, asc, eq, inArray, isNull, lt } from 'drizzle-orm'
 import { randomId } from './crypto'
 import type { Database } from './db/open'
 import {
@@ -233,6 +233,23 @@ export function createSessions({ db, now = () => new Date() }: { db: Database; n
                 )
             })
             return row ? (row.leftAt ? 'left' : 'member') : null
+        },
+
+        /** The open sessions these profiles are in (have not left). */
+        async openWith(profileIds: string[]): Promise<string[]> {
+            if (profileIds.length === 0) return []
+            const rows = await db
+                .selectDistinct({ id: session.id })
+                .from(sessionMember)
+                .innerJoin(session, eq(session.id, sessionMember.sessionId))
+                .where(
+                    and(
+                        inArray(sessionMember.profileId, profileIds),
+                        isNull(sessionMember.leftAt),
+                        isNull(session.endedAt)
+                    )
+                )
+            return rows.map((row) => row.id)
         },
 
         /** Everyone in the session, in the order they came. */

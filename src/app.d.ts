@@ -12,6 +12,8 @@ declare global {
         interface Locals {
             /** Spotify account this browser is signed in with: a host. */
             account: AccountView | null
+            /** When that sign-in expires. */
+            loginExpiresAt: Date | null
             /** Participant profile of this browser. */
             profile: ProfileView | null
         }

@@ -126,11 +126,13 @@ export function createCatalog({
     const artistPages = recent<ArtistAlbumsPage | null>(ARTIST_CACHE_SIZE)
 
     async function save(tracks: SpotifyTrack[]) {
-        if (tracks.length === 0) return
+        // One row per track, or the upsert would change the same row twice
+        const unique = [...new Map(tracks.map((item) => [item.id, item])).values()]
+        if (unique.length === 0) return
         const fetchedAt = now()
         await db
             .insert(track)
-            .values(tracks.map((item) => ({ ...item, fetchedAt })))
+            .values(unique.map((item) => ({ ...item, fetchedAt })))
             .onConflictDoUpdate({
                 target: track.id,
                 set: {
@@ -151,6 +153,9 @@ export function createCatalog({
     }
 
     return {
+        /** Puts tracks that came with another answer (a playlist's items) into the cache. */
+        keep: save,
+
         /**
          * The tracks with these IDs, in this order, from the cache or looked up one at a time with the
          * account's token (there is no batch lookup). Unknown IDs are left out. Each lookup is charged.

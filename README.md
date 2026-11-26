@@ -12,6 +12,7 @@ A shared music queue for a room full of people. Someone starts a session, everyo
 - **Host settings:** anonymous sessions (nobody sees who added what) and limits per person (open wishes, wishes per session, how many pool tracks count).
 - **Now playing and up next** on everyone's phone, updated live.
 - **Find music** by searching tracks, albums and artists, or by pasting track links from the Spotify app.
+- **Fill your pool from the Spotify app:** add tracks to the host's inbox playlist right in Spotify, wherever you are, and they land in your pool. Each host can have a lasting inbox, and one more just for a session.
 - Light and dark theme, English and German.
 - **Ready for browser agents:** a browser with a built-in AI assistant (WebMCP) gets tools to read the page and use it for you: search, wish, fill your pool, change settings. Before those tools skip a track, take back a wish, leave or end a session, disconnect a player, delete an account or switch profiles, crowd-dj asks you, and your personal link stays out of their reach. An assistant that clicks through the page by itself, like a person, is not held back by this; it can still do only what you can do.
 
@@ -61,6 +62,14 @@ Under **Music → Search** you find tracks, albums and artists (an artist opens 
 
 If the host set limits, they apply: a limit on wishes refuses further wishes, and a pool limit means only your newest tracks can play in that session (the older ones stay in your pool).
 
+### From the Spotify app (inbox)
+
+If the host set up an inbox playlist and shared its invitation, the **Pool** tab offers to open it in Spotify. Join it as a collaborator once, and from then on add tracks to it in the Spotify app like to any playlist, also from home or on the way.
+
+So crowd-dj knows which tracks are yours, link your Spotify profile once on **My profile**: in the Spotify app, open your profile, choose Share → Copy link to profile, and paste it there. Signed in as a host, your profile is linked to your account by itself (on the first device you sign in with, for as long as that sign-in lasts; signing out there frees it for another). crowd-dj looks at the inboxes every minute while one of the host's sessions is open, and puts new tracks into your pool as your newest while you are in that session. Tracks you added before follow when you link your profile or join one of the host's sessions.
+
+After that, the inbox and your pool are separate: removing a track in Spotify leaves it in your pool, and removing it from your pool leaves it in the playlist. When the open session has a pool limit, crowd-dj tidies the inbox up: tracks in your pool that are no longer among your newest leave the playlist (they stay in your pool).
+
 ### Playing
 
 The session page shows **Now playing** (cover, title, artists, for whom it plays) and **Up next**. Up next may still change until the track is handed to Spotify, for example when someone wishes a track.
@@ -76,20 +85,23 @@ The session page shows **Now playing** (cover, title, artists, for whom it plays
 - **Start:** on the start page. You have at most one open session; starting again opens it.
 - **Settings** (any time): how the next track is picked, anonymous, limits per person, skipping (own tracks without a vote; skip voting with the votes and the share of participants it takes).
 - **End:** ends the session for everyone; its link then shows "This session has ended".
-- **My account:** let your own account play your sessions (**Play through my account**), or connect, swap or disconnect a player account (Spotify shows its account dialog: pick "Not you?" and sign in with the player). Signing in only lets crowd-dj read your Spotify profile; only the account that plays allows it to read and control playback, nothing else (no playlists, no library, no listening history). See until when your sign-in and your player's are valid: Spotify requires signing in again every 6 months, and crowd-dj warns two weeks before. **Delete my account** removes your stored tokens and your player's and signs you out everywhere.
+- **My account:** let your own account play your sessions (**Play through my account**), or connect, swap or disconnect a player account (Spotify shows its account dialog: pick "Not you?" and sign in with the player). Signing in only lets crowd-dj read your Spotify profile; only the account that plays allows it to read and control playback, and only an account with an inbox allows it to create playlists, read them and remove tracks from them. Nothing else: no library, no listening history.
+- **Inbox** (on **My account**): **Set up inbox** creates a collaborative playlist in your Spotify account (Spotify asks you once for the playlist permission). Open it in the Spotify app, choose **Invite collaborators** and paste that link into crowd-dj: your sessions then show it to everyone. **Remove inbox** makes crowd-dj forget it; the playlist stays in your library.
+- **Session inbox** (on the session page): a playlist of its own for one session, with its own invitation, for guests who should not get your lasting inbox. That session then shows only this invitation. It works like your inbox while the session is open and stays in your Spotify library afterwards. See until when your sign-in and your player's are valid: Spotify requires signing in again every 6 months, and crowd-dj warns two weeks before. **Delete my account** removes your stored tokens and your player's and signs you out everywhere.
 
 ## What it does not do
 
 - **No streaming to phones.** The music plays on the speaker of the playing account; Spotify's terms do not allow passing that sound on to several listeners, so crowd-dj never will.
 - **At most 5 Spotify accounts per installation.** Spotify allows a self-made app only 5 users, hosts and players together. Participants do not count.
-- **No playlists yet.** crowd-dj does not read Spotify playlists; to bring a whole playlist, copy its track links as described above.
+- **No other playlists.** crowd-dj reads only the inbox playlists it created; Spotify does not let it read other people's playlists. To bring a whole playlist, copy its track links as described above.
+- **Linked Spotify profiles are not checked.** Anyone can paste any profile link, and the first profile to claim it keeps it (a host signing in with that account takes it back). Someone in a host's session who claims another person's profile gets the tracks that person adds to that host's inboxes into their own pool instead, and with a pool limit can get them tidied out of the playlist.
+- **Inboxes are looked at only while a session is open.** Tracks added meanwhile come in with the next session.
 - **The personal link of a profile cannot be revoked yet.** Whoever has it can use that profile.
 
 ## Coming up
 
 Ideas that may come next. No promises and no dates, but this is where crowd-dj is heading:
 
-- **Fill your pool from the Spotify app.** Add tracks to a shared inbox playlist right in Spotify, wherever you are, and they land in your pool: a permanent inbox per host, and one per session if the host likes. Link your Spotify profile once and crowd-dj knows which tracks are yours.
 - **Listen along from anywhere.** Not in the room? Sign in with your own Spotify Premium and hear the same track at the same moment, in a browser tab or in your Spotify app.
 - **Share to crowd-dj.** On Android, "Share → crowd-dj" in the Spotify app adds a track to your pool.
 - **A shared player for the office.** A player account permanently connected to the room's speaker, with a start code: colleagues start a session on it without any Spotify sign-in of their own.

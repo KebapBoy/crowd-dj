@@ -188,4 +188,81 @@ describe('spotify api', () => {
         fetchMock.mockImplementation(async () => json({ error: { status: 404 } }, 404))
         await expect(api.next('host')).rejects.toMatchObject({ status: 404 })
     })
+
+    it('creates a private collaborative playlist', async () => {
+        fetchMock.mockResolvedValue(json({ id: ID(7), snapshot_id: 'v1' }, 201))
+        expect(await api.createPlaylist('host', 'Inbox', 'Add tracks')).toBe(ID(7))
+        const [url, init] = fetchMock.mock.calls[0]
+        expect(new URL(url).pathname).toBe('/v1/me/playlists')
+        expect(init.method).toBe('POST')
+        expect(JSON.parse(init.body)).toEqual({
+            name: 'Inbox',
+            description: 'Add tracks',
+            public: false,
+            collaborative: true
+        })
+        fetchMock.mockResolvedValue(json({ id: '../me' }, 201))
+        await expect(api.createPlaylist('host', 'Inbox', '')).rejects.toThrow()
+    })
+
+    it("reads a playlist's tracks with who added them, in pages", async () => {
+        fetchMock.mockResolvedValueOnce(
+            json({
+                items: [
+                    {
+                        added_at: '2026-11-20T10:00:00Z',
+                        added_by: { id: 'ana' },
+                        item: trackJson(1)
+                    },
+                    // Before February 2026 the track was called `track`
+                    { added_at: null, added_by: { id: 'ben' }, track: trackJson(2) },
+                    { added_at: '2026-11-20T10:00:00Z', added_by: null, item: trackJson(3) },
+                    {
+                        added_at: '2026-11-20T10:00:00Z',
+                        added_by: { id: 'ana' },
+                        item: { ...trackJson(4), is_local: true }
+                    },
+                    null
+                ],
+                next: 'https://api.spotify.com/v1/playlists/x/items?offset=50'
+            })
+        )
+        const page = await api.playlistItems('host', ID(7))
+        expect(new URL(fetchMock.mock.calls[0][0]).pathname).toBe(`/v1/playlists/${ID(7)}/items`)
+        expect(page).toEqual({
+            items: [
+                {
+                    track: expect.objectContaining({ id: ID(1) }),
+                    addedBy: 'ana',
+                    addedAt: new Date('2026-11-20T10:00:00Z')
+                },
+                {
+                    track: expect.objectContaining({ id: ID(2) }),
+                    addedBy: 'ben',
+                    addedAt: new Date(0)
+                },
+                {
+                    track: expect.objectContaining({ id: ID(3) }),
+                    addedBy: null,
+                    addedAt: new Date('2026-11-20T10:00:00Z')
+                }
+            ],
+            next: 50
+        })
+        fetchMock.mockResolvedValueOnce(json({ error: { status: 404 } }, 404))
+        expect(await api.playlistItems('host', ID(7), 50)).toBeNull()
+        expect(await api.playlistItems('host', 'not an id')).toBeNull()
+    })
+
+    it('removes tracks from a playlist by their URIs', async () => {
+        fetchMock.mockResolvedValue(json({ snapshot_id: 'v2' }))
+        expect(await api.removeFromPlaylist('host', ID(7), [ID(1), ID(2)])).toBe('v2')
+        const [url, init] = fetchMock.mock.calls[0]
+        expect(new URL(url).pathname).toBe(`/v1/playlists/${ID(7)}/items`)
+        expect(init.method).toBe('DELETE')
+        expect(JSON.parse(init.body)).toEqual({
+            items: [{ uri: `spotify:track:${ID(1)}` }, { uri: `spotify:track:${ID(2)}` }]
+        })
+        await expect(api.removeFromPlaylist('host', ID(7), ['../x'])).rejects.toThrow()
+    })
 })

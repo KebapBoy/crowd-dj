@@ -43,6 +43,27 @@
       "when": 1795208344792,
       "tag": "0005_skip",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1795734322451,
+      "tag": "0006_inbox",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1795736350238,
+      "tag": "0007_inbox_import",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1795737784603,
+      "tag": "0008_verified_until",
+      "breakpoints": true
     }
   ]
 }

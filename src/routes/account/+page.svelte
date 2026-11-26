@@ -1,4 +1,5 @@
 <script lang="ts">
+    import InboxIcon from '@lucide/svelte/icons/inbox'
     import LogInIcon from '@lucide/svelte/icons/log-in'
     import LogOutIcon from '@lucide/svelte/icons/log-out'
     import PlayIcon from '@lucide/svelte/icons/play'
@@ -12,6 +13,7 @@
     import { resolve } from '$app/paths'
     import type { SubmitFunction } from '$app/forms'
     import AccountRow from '#lib/components/account-row.svelte'
+    import InboxSettings from '#lib/components/inbox-settings.svelte'
     import * as AlertDialog from '#lib/components/ui/alert-dialog/index.js'
     import { Button } from '#lib/components/ui/button/index.js'
     import * as Card from '#lib/components/ui/card/index.js'
@@ -168,6 +170,56 @@
                     {/if}
                 {/if}
             </Card.Footer>
+        </Card.Root>
+
+        <Card.Root>
+            <Card.Header>
+                <Card.Title><h2>{m.inbox_heading()}</h2></Card.Title>
+                <Card.Description>{m.inbox_intro()}</Card.Description>
+            </Card.Header>
+            <Card.Content class="flex flex-col gap-3">
+                {#if data.inbox}
+                    <InboxSettings
+                        inbox={data.inbox}
+                        allowed={data.host.allowsInbox}
+                        allowHref={resolve('/auth/allow-inbox')}
+                    />
+                {:else}
+                    <p class="text-sm text-muted-foreground">{m.inbox_scopes_hint()}</p>
+                {/if}
+            </Card.Content>
+            {#if !data.inbox && !data.host.allowsInbox}
+                <Card.Footer>
+                    <Button href={resolve('/auth/allow-inbox')} class={touch}>
+                        <InboxIcon data-icon="inline-start" />
+                        {m.inbox_create()}
+                    </Button>
+                </Card.Footer>
+            {:else if !data.inbox}
+                <Card.Footer>
+                    <form
+                        method="POST"
+                        action="?/createInbox"
+                        class="w-full sm:w-auto"
+                        use:enhance={() => {
+                            busy = true
+                            return async ({ result, update }) => {
+                                busy = false
+                                if (result.type === 'success') toast.success(m.inbox_created())
+                                else if (result.type === 'error')
+                                    toast.error(result.error?.message ?? m.action_failed())
+                                else if (result.type === 'failure') toast.error(m.action_failed())
+                                await update()
+                            }
+                        }}
+                    >
+                        <Button type="submit" class={touch} disabled={busy}>
+                            <InboxIcon data-icon="inline-start" />
+                            {m.inbox_create()}
+                        </Button>
+                    </form>
+                </Card.Footer>
+            {/if}
         </Card.Root>
 
         <Card.Root class="ring-destructive/30">

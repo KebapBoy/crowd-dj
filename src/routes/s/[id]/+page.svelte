@@ -1,4 +1,5 @@
 <script lang="ts">
+    import InboxIcon from '@lucide/svelte/icons/inbox'
     import LogOutIcon from '@lucide/svelte/icons/log-out'
     import QrCodeIcon from '@lucide/svelte/icons/qr-code'
     import SpeakerIcon from '@lucide/svelte/icons/speaker'
@@ -6,7 +7,10 @@
     import { toast } from '#lib/components/ui/toast/index.js'
     import { enhance } from '$app/forms'
     import { invalidateAll } from '$app/navigation'
+    import { resolve } from '$app/paths'
     import CatalogSearch from '#lib/components/catalog-search.svelte'
+    import InboxLinks from '#lib/components/inbox-links.svelte'
+    import InboxSettings from '#lib/components/inbox-settings.svelte'
     import NameForm from '#lib/components/name-form.svelte'
     import NowPlaying from '#lib/components/now-playing.svelte'
     import PoolList from '#lib/components/pool-list.svelte'
@@ -46,6 +50,11 @@
     const initial = (name: string) => (Array.from(name)[0] ?? '').toUpperCase()
 
     const live = $derived(data.member || data.isHost)
+
+    /** Lets the host's account hold inbox playlists, then creates this session's. */
+    const inboxAllowHref = $derived(
+        `${resolve('/auth/allow-inbox')}?session=${encodeURIComponent(data.session.id)}`
+    )
 
     // Live updates: the server says when something changed, and the page reloads its data. An open
     // page also keeps the session from ending as idle. Starts once the visitor has joined.
@@ -228,6 +237,9 @@
                         {#if data.session.maxPoolSize !== null && data.session.mode !== 'wishes_only'}
                             {@render note(m.pool_limit({ count: data.session.maxPoolSize }))}
                         {/if}
+                        {#if data.inboxLinks.length > 0}
+                            <InboxLinks links={data.inboxLinks} linked={data.spotifyLinked} />
+                        {/if}
                         <PoolList
                             pool={data.pool}
                             limit={data.session.mode === 'wishes_only'
@@ -323,7 +335,62 @@
                 <SessionSettings settings={data.settings} />
             </Card.Content>
         </Card.Root>
+    {/if}
 
+    {#if data.sessionInbox}
+        <Card.Root>
+            <Card.Header>
+                <Card.Title><h2>{m.inbox_session_heading()}</h2></Card.Title>
+                <Card.Description>{m.inbox_session_intro()}</Card.Description>
+            </Card.Header>
+            {#if data.sessionInbox.inbox}
+                <Card.Content>
+                    <InboxSettings
+                        inbox={data.sessionInbox.inbox}
+                        allowed={data.sessionInbox.allowed}
+                        allowHref={inboxAllowHref}
+                    />
+                </Card.Content>
+            {:else}
+                <Card.Footer>
+                    {#if data.sessionInbox.allowed}
+                        <form
+                            method="POST"
+                            action="?/createInbox"
+                            class="w-full sm:w-auto"
+                            use:enhance={() => {
+                                busy = true
+                                return async ({ result, update }) => {
+                                    busy = false
+                                    if (result.type === 'success') toast.success(m.inbox_created())
+                                    else if (result.type === 'error')
+                                        toast.error(result.error?.message ?? m.action_failed())
+                                    else toast.error(m.action_failed())
+                                    await update()
+                                }
+                            }}
+                        >
+                            <Button
+                                type="submit"
+                                class="h-11 w-full sm:h-8 sm:w-auto"
+                                disabled={busy}
+                            >
+                                <InboxIcon data-icon="inline-start" />
+                                {m.inbox_session_create()}
+                            </Button>
+                        </form>
+                    {:else}
+                        <Button href={inboxAllowHref} class="h-11 w-full sm:h-8 sm:w-auto">
+                            <InboxIcon data-icon="inline-start" />
+                            {m.inbox_session_create()}
+                        </Button>
+                    {/if}
+                </Card.Footer>
+            {/if}
+        </Card.Root>
+    {/if}
+
+    {#if data.settings}
         <Card.Root class="ring-destructive/30">
             <Card.Header>
                 <Card.Title><h2>{m.session_end()}</h2></Card.Title>

@@ -4,6 +4,7 @@ import {
     catalog,
     engine,
     events,
+    inboxes,
     playing,
     pools,
     profiles,
@@ -17,6 +18,7 @@ import {
 import { isSpotifyId } from '#lib/server/catalog.ts'
 import {
     catalogCall,
+    createInbox,
     hostSession,
     mayChange,
     mayCreateProfile,
@@ -67,6 +69,29 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
         members: member ? await sessions.members(session.id) : [],
         wishes: member && profile ? await wishes.list(session.id, profile.id) : [],
         pool: member && profile ? await pools.list(profile.id) : [],
+        /**
+         * Inbox playlists members can add to in the Spotify app (once the host shared them): the
+         * session's own when it has one (for guests who should not get the lasting one), else the
+         * host's lasting one.
+         */
+        inboxLinks: member
+            ? [(await inboxes.forSession(session.id)) ?? (await inboxes.lasting(session.hostId))]
+                  .filter((inbox) => inbox?.inviteUrl)
+                  .map((inbox) => ({
+                      id: inbox!.id,
+                      session: !!inbox!.sessionId,
+                      url: inbox!.inviteUrl!
+                  }))
+            : [],
+        /** Whether tracks the visitor adds to an inbox reach their pool. */
+        spotifyLinked: !!profile?.spotifyUserId,
+        /** The session's own inbox, for the host. */
+        sessionInbox: isHost
+            ? {
+                  inbox: await inboxes.forSession(session.id),
+                  allowed: locals.account?.allowsInbox ?? false
+              }
+            : null,
         settings: isHost
             ? {
                   mode: session.mode,
@@ -263,6 +288,30 @@ export const actions: Actions = {
         )
         sessionChanged(session.id)
         return { added: tracks.length }
+    },
+    /** The host creates the session's own inbox (their account allows it, else `/auth/allow-inbox`). */
+    createInbox: async ({ params, locals }) => {
+        const session = await hostSession(params.id, locals)
+        if (!locals.account?.allowsInbox) return fail(409, { error: m.error_request() })
+        await createInbox(session.hostId, session.id)
+        events.publish(session.id)
+    },
+    inboxInvite: async ({ params, request, locals }) => {
+        const session = await hostSession(params.id, locals)
+        const form = await request.formData()
+        const inbox = await inboxes.forSession(session.id)
+        if (!inbox || form.get('inbox') !== inbox.id) return fail(409, { error: m.error_request() })
+        if (!(await inboxes.setInvite(session.hostId, inbox.id, form.get('invite'))))
+            return fail(400, { inviteInvalid: true })
+        events.publish(session.id)
+    },
+    inboxForget: async ({ params, request, locals }) => {
+        const session = await hostSession(params.id, locals)
+        const inbox = await inboxes.forSession(session.id)
+        if (!inbox || (await request.formData()).get('inbox') !== inbox.id)
+            return fail(409, { error: m.error_request() })
+        await inboxes.forget(session.hostId, inbox.id)
+        events.publish(session.id)
     },
     unpool: async ({ params, request, locals }) => {
         const { session, profile } = await memberSession(params.id, locals)

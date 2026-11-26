@@ -111,6 +111,26 @@ interface Page<T> {
     items: (T | null)[]
     next: string | null
 }
+interface PlaylistItemJson {
+    added_at?: string | null
+    added_by?: { id?: string | null } | null
+    /** Called `track` before February 2026; read both. */
+    item?: TrackJson | null
+    track?: TrackJson | null
+}
+
+/** A track in a playlist, with who added it and when. */
+export interface PlaylistEntry {
+    track: SpotifyTrack
+    /** Spotify user ID; null when Spotify does not say (very old playlists). */
+    addedBy: string | null
+    addedAt: Date
+}
+
+/** Items of a playlist come in pages of at most 50. */
+export const PLAYLIST_ITEMS_LIMIT = 50
+/** Tracks removed from a playlist in one request at most. */
+export const PLAYLIST_REMOVE_LIMIT = 100
 
 /** Spotify IDs are 22 characters of base 62. */
 export const SPOTIFY_ID = /^[0-9A-Za-z]{22}$/
@@ -164,7 +184,7 @@ export function createSpotifyApi({
 
     /** A request with the account's token. A 401 gets one retry with a fresh token. */
     async function request(
-        method: 'GET' | 'PUT' | 'POST',
+        method: 'GET' | 'PUT' | 'POST' | 'DELETE',
         accountId: string,
         path: string,
         body?: unknown,
@@ -373,6 +393,78 @@ export function createSpotifyApi({
         /** Skips to the next track in Spotify's queue. */
         async next(accountId: string) {
             await command('POST', accountId, '/me/player/next')
+        },
+
+        /** Creates a private, collaborative playlist of the account; returns its ID. */
+        async createPlaylist(accountId: string, name: string, description: string) {
+            const path = '/me/playlists'
+            const response = await request('POST', accountId, path, {
+                name,
+                description,
+                public: false,
+                collaborative: true
+            })
+            if (!response.ok) throw failed('POST', path, response)
+            const json = (await response.json()) as { id?: unknown }
+            if (typeof json.id !== 'string' || !SPOTIFY_ID.test(json.id))
+                throw new SpotifyError('Spotify sent no playlist ID', 502)
+            return json.id
+        },
+
+        /** The playlist's current version; null when it does not exist (any more). */
+        async playlistSnapshot(accountId: string, playlistId: string): Promise<string | null> {
+            if (!SPOTIFY_ID.test(playlistId)) return null
+            const json = await get<{ snapshot_id?: string }>(
+                accountId,
+                `/playlists/${playlistId}?fields=snapshot_id`
+            )
+            return json?.snapshot_id ?? null
+        },
+
+        /**
+         * A page of a playlist's items: its tracks with who added them and when (episodes and local
+         * files left out). Null when the playlist does not exist (any more). Spotify returns items only for playlists the account owns or
+         * collaborates on.
+         */
+        async playlistItems(
+            accountId: string,
+            playlistId: string,
+            offset = 0
+        ): Promise<{ items: PlaylistEntry[]; next: number | null } | null> {
+            if (!SPOTIFY_ID.test(playlistId)) return null
+            const params = new URLSearchParams({
+                limit: String(PLAYLIST_ITEMS_LIMIT),
+                offset: String(offset)
+            })
+            const json = await get<Page<PlaylistItemJson>>(
+                accountId,
+                `/playlists/${playlistId}/items?${params}`
+            )
+            if (!json) return null
+            const items = json.items.flatMap((entry) => {
+                const track = toTrack(entry?.item ?? entry?.track ?? null)
+                if (!track) return []
+                const addedBy = entry?.added_by?.id || null
+                const addedAt = Date.parse(entry?.added_at ?? '')
+                return [{ track, addedBy, addedAt: new Date(Number.isNaN(addedAt) ? 0 : addedAt) }]
+            })
+            return { items, next: json.next ? offset + PLAYLIST_ITEMS_LIMIT : null }
+        },
+
+        /**
+         * Removes these tracks from a playlist (at most `PLAYLIST_REMOVE_LIMIT`), every time they
+         * occur in it: Spotify takes no positions. Returns the playlist's new version.
+         */
+        async removeFromPlaylist(accountId: string, playlistId: string, trackIds: string[]) {
+            if (!SPOTIFY_ID.test(playlistId)) throw new Error('Not a Spotify playlist ID')
+            if (trackIds.length > PLAYLIST_REMOVE_LIMIT) throw new Error('Too many tracks')
+            const path = `/playlists/${playlistId}/items`
+            const response = await request('DELETE', accountId, path, {
+                items: trackIds.map((id) => ({ uri: trackUri(id) }))
+            })
+            if (!response.ok) throw failed('DELETE', path, response)
+            const json = (await response.json().catch(() => ({}))) as { snapshot_id?: string }
+            return json.snapshot_id ?? null
         }
     }
 }
