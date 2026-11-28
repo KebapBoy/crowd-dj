@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-28
+
 ### Added
 
 - Inbox playlists: on **My account**, a host sets up an inbox, a collaborative playlist in their Spotify account, and stores its invitation from the Spotify app; sessions show it in the **Pool** tab. Tracks people add to it in the Spotify app, wherever they are, land in their pools within a minute while they are in one of the host's open sessions. Participants link their Spotify profile once on **My profile** (a host's profile is linked to their account by itself, on the first device they sign in with); tracks added before follow. A session can have an inbox of its own, for guests who should not get the lasting one; it then shows only that invitation. With a pool limit in the open session, crowd-dj removes tracks from the inbox that are in a person's pool but no longer among their newest; they stay in the pool. Setting up an inbox asks Spotify once for permission to create, read and change playlists of the host's own account; nothing else asks for it, and allowing it keeps playback allowed and the other way round.
